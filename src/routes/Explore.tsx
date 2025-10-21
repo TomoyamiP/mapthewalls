@@ -1,3 +1,4 @@
+// src/routes/Explore.tsx
 import MapView from "../components/MapView";
 import { Link } from "react-router-dom";
 
@@ -5,10 +6,18 @@ export default function Explore() {
   return (
     <div className="relative h-screen w-screen">
       <MapView />
-      {/* TEMP: simple top-left nav to check routing */}
-      <div className="absolute top-4 left-4 bg-zinc-900/80 text-zinc-100 rounded-lg px-3 py-2 text-sm space-x-3">
-        <Link to="/gallery" className="underline">Gallery</Link>
+
+      {/* Top-left nav (fixed + above map) */}
+      <div
+        className="fixed z-[10000] top-4 left-4 pointer-events-auto
+                   bg-zinc-900/80 text-zinc-100 rounded-lg px-3 py-2 text-sm"
+      >
+        <Link to="/gallery" className="underline hover:text-white">
+          Gallery
+        </Link>
       </div>
+
+      {/* Floating Add Graffiti button */}
       <button
         aria-label="Add graffiti"
         className="fixed z-[10000] bottom-20 right-6 h-14 w-14 rounded-full text-2xl
