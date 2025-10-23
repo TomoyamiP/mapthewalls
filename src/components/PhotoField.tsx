@@ -5,6 +5,7 @@
 // - Returns the selected File via onChange so parent can store it (later)
 
 import { useEffect, useRef, useState } from "react";
+import { fileToDataURLWithHeicSupport } from "../lib/images";
 
 type PhotoFieldProps = {
   label?: string;
@@ -18,15 +19,40 @@ export default function PhotoField({ label = "Photo", onChange, initialFile = nu
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Create/revoke object URL for live preview
-  useEffect(() => {
+useEffect(() => {
+  let revokeUrl: string | null = null;
+
+  async function makePreview() {
     if (!file) {
       setPreviewUrl(null);
       return;
     }
+
+    // If HEIC/HEIF, convert to JPEG and preview the data URL
+    const isHeic = /image\/(heic|heif)/i.test(file.type) || /\.(heic|heif)$/i.test(file.name || "");
+    if (isHeic) {
+      try {
+        const dataUrl = await fileToDataURLWithHeicSupport(file);
+        setPreviewUrl(dataUrl); // data URL → nothing to revoke
+        return;
+      } catch {
+        setPreviewUrl(null);
+        return;
+      }
+    }
+
+    // Non-HEIC images → use fast object URL preview
     const url = URL.createObjectURL(file);
+    revokeUrl = url;
     setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  }
+
+  makePreview();
+
+  return () => {
+    if (revokeUrl) URL.revokeObjectURL(revokeUrl);
+  };
+}, [file]);
 
   function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;

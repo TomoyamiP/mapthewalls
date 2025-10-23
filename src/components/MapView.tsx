@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { GraffitiSpot } from "../types";
 
-// --- Fix default marker icons in Vite (so the pin shows up) ---
+// Fix default marker icons in Vite
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -42,7 +42,6 @@ function UseLocate({ onLocate }: { onLocate: (pos: [number, number]) => void }) 
 
 export default function MapView({ spots = [] as GraffitiSpot[] }) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
-
   const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
 
   return (
@@ -53,28 +52,37 @@ export default function MapView({ spots = [] as GraffitiSpot[] }) {
       />
       <UseLocate onLocate={setUserPos} />
 
-      {/* Render saved graffiti markers */}
+      {/* Saved graffiti markers */}
       {spots.map((s) => (
         <Marker key={s.id} position={[s.lat, s.lng]}>
-          <Popup>
+          <Popup maxWidth={260}>
             <div className="text-sm">
-              <div className="font-medium mb-1">{s.title}</div>
+              <div className="font-medium mb-2">{s.title}</div>
               {s.photoUrl ? (
                 <img
                   src={s.photoUrl}
                   alt={s.title}
-                  style={{ width: 140, height: 100, objectFit: "cover", borderRadius: 8 }}
+                  className="block"
+                  style={{
+                    display: "block",
+                    width: 220,
+                    height: 140,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                  }}
                 />
               ) : (
                 <div className="text-xs text-gray-500">No photo</div>
               )}
-              <div className="mt-1 text-xs opacity-70">{new Date(s.createdAt).toLocaleString()}</div>
+              <div className="mt-2 text-xs opacity-70">
+                {new Date(s.createdAt).toLocaleString()}
+              </div>
             </div>
           </Popup>
         </Marker>
       ))}
 
-      {/* Optional: show your current position as a marker */}
+      {/* Optional: your current position */}
       {userMarker.map((pos, i) => (
         <Marker key={`u-${i}`} position={pos} />
       ))}
