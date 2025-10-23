@@ -1,8 +1,9 @@
 // src/components/MapView.tsx
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import type { GraffitiSpot } from "../types";
 
 // --- Fix default marker icons in Vite (so the pin shows up) ---
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -39,25 +40,43 @@ function UseLocate({ onLocate }: { onLocate: (pos: [number, number]) => void }) 
   return null;
 }
 
-export default function MapView() {
+export default function MapView({ spots = [] as GraffitiSpot[] }) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
 
-  const markers = useMemo(() => (userPos ? [userPos] : []), [userPos]);
+  const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
 
   return (
-      <MapContainer
-        center={TOKYO_STATION}
-        zoom={13}
-        className="h-screen w-screen"  // Tailwind: full viewport height & width
-        scrollWheelZoom
-      >
+    <MapContainer center={TOKYO_STATION} zoom={13} className="h-screen w-screen" scrollWheelZoom>
       <TileLayer
         attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <UseLocate onLocate={setUserPos} />
-      {markers.map((pos, i) => (
-        <Marker key={i} position={pos} />
+
+      {/* Render saved graffiti markers */}
+      {spots.map((s) => (
+        <Marker key={s.id} position={[s.lat, s.lng]}>
+          <Popup>
+            <div className="text-sm">
+              <div className="font-medium mb-1">{s.title}</div>
+              {s.photoUrl ? (
+                <img
+                  src={s.photoUrl}
+                  alt={s.title}
+                  style={{ width: 140, height: 100, objectFit: "cover", borderRadius: 8 }}
+                />
+              ) : (
+                <div className="text-xs text-gray-500">No photo</div>
+              )}
+              <div className="mt-1 text-xs opacity-70">{new Date(s.createdAt).toLocaleString()}</div>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+
+      {/* Optional: show your current position as a marker */}
+      {userMarker.map((pos, i) => (
+        <Marker key={`u-${i}`} position={pos} />
       ))}
     </MapContainer>
   );

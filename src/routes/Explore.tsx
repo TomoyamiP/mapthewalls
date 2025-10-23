@@ -1,28 +1,34 @@
-import { useState } from "react";
+// src/routes/Explore.tsx
+import { useEffect, useState } from "react";
 import MapView from "../components/MapView";
 import { Link } from "react-router-dom";
 import Modal from "../components/Modal";
 import PhotoField from "../components/PhotoField";
+import type { GraffitiSpot } from "../types";
+import { loadSpots } from "../lib/storage";
 
 export default function Explore() {
   const [open, setOpen] = useState(false);
-  const [photoFile, setPhotoFile] = useState<File | null>(null); // store selected image (for later save)
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [spots, setSpots] = useState<GraffitiSpot[]>([]);
+
+  // Load once on mount
+  useEffect(() => {
+    setSpots(loadSpots());
+  }, []);
 
   return (
     <div className="relative h-screen w-screen">
-      <MapView />
+      <MapView spots={spots} />
 
-      {/* Top-left nav (fixed + above map) */}
-      <div
-        className="fixed z-[10000] top-4 left-4 pointer-events-auto
-                   bg-zinc-900/80 text-zinc-100 rounded-lg px-3 py-2 text-sm"
-      >
+      {/* Top-left nav (fixed above map) */}
+      <div className="fixed z-[10000] top-4 left-4 pointer-events-auto bg-zinc-900/80 text-zinc-100 rounded-lg px-3 py-2 text-sm">
         <Link to="/gallery" className="underline hover:text-white">
           Gallery
         </Link>
       </div>
 
-      {/* Floating Add Graffiti button */}
+      {/* Floating Add button */}
       <button
         aria-label="Add graffiti"
         className="fixed z-[10000] bottom-20 right-6 h-14 w-14 rounded-full text-2xl
@@ -33,7 +39,7 @@ export default function Explore() {
         +
       </button>
 
-      {/* Add Graffiti modal (with photo preview, title/desc placeholders) */}
+      {/* Add Graffiti modal (form continues to be a shell for now) */}
       <Modal open={open} onClose={() => setOpen(false)} title="Add Graffiti">
         <form
           className="space-y-4"
@@ -43,8 +49,6 @@ export default function Explore() {
           }}
         >
           <PhotoField label="Photo" onChange={setPhotoFile} />
-
-          {/* Title */}
           <div className="space-y-2">
             <label className="text-sm text-zinc-300">Title</label>
             <input
@@ -54,8 +58,6 @@ export default function Explore() {
               name="title"
             />
           </div>
-
-          {/* Description */}
           <div className="space-y-2">
             <label className="text-sm text-zinc-300">Description (optional)</label>
             <textarea
@@ -65,8 +67,6 @@ export default function Explore() {
               rows={3}
             />
           </div>
-
-          {/* Actions */}
           <div className="mt-4 flex justify-end gap-2">
             <button
               type="button"
