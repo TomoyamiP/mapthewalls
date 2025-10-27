@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { GraffitiSpot } from "../types";
+import { Link } from "react-router-dom";
 
 // Fix default marker icons in Vite
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -114,6 +115,7 @@ export default function MapView({
           <Popup maxWidth={260}>
             <div className="text-sm">
               <div className="font-medium mb-2">{s.title}</div>
+
               {s.photoUrl ? (
                 <img
                   src={s.photoUrl}
@@ -130,8 +132,21 @@ export default function MapView({
               ) : (
                 <div className="text-xs text-gray-500">No photo</div>
               )}
+
               <div className="mt-2 text-xs opacity-70">
                 {new Date(s.createdAt).toLocaleString()}
+              </div>
+
+              {/* actions */}
+              <div className="mt-3">
+                <Link
+                  to={`/spots/${s.id}`}
+                  className="inline-flex items-center rounded-lg px-2.5 py-1.5
+                            text-xs font-medium bg-zinc-900 border border-zinc-700
+                            text-zinc-100 hover:bg-zinc-800 transition"
+                >
+                  View details
+                </Link>
               </div>
             </div>
           </Popup>
