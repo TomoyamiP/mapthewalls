@@ -7,7 +7,7 @@ import PhotoField from "../components/PhotoField";
 import type { GraffitiSpot } from "../types";
 import { loadSpots, addSpot } from "../lib/storage";
 import { getPosition } from "../lib/geo";
-import { fileToDataURLWithHeicSupport, compressToJpegDataURL } from "../lib/images";
+import { fileToDataURLWithHeicSupport, compressToTargetBytes } from "../lib/images";
 import { readGpsFromFile } from "../lib/exif";
 
 export default function Explore() {
@@ -44,7 +44,7 @@ export default function Explore() {
     if (photoFile) {
       try {
         const raw = await fileToDataURLWithHeicSupport(photoFile);
-        photoUrl = await compressToJpegDataURL(raw, 1280, 1280, 0.75);
+        photoUrl = await compressToTargetBytes(raw, 380 * 1024);
       } catch {
         alert("Could not read/convert the selected photo.");
         return;

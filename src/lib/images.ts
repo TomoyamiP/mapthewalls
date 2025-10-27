@@ -61,3 +61,32 @@ export async function compressToJpegDataURL(
   const out = canvas.toDataURL("image/jpeg", quality);
   return out;
 }
+
+// --- Adaptive compression helpers ---
+function base64Bytes(dataUrl: string) {
+  const i = dataUrl.indexOf(",") + 1;
+  const b64 = dataUrl.slice(i).replace(/=+$/, "");
+  return Math.floor((b64.length * 3) / 4);
+}
+
+/**
+ * Recompress an image (as data URL) until it's under maxBytes.
+ * Lowers dimensions & quality gradually; stops after a few passes.
+ */
+export async function compressToTargetBytes(
+  dataUrl: string,
+  maxBytes = 380 * 1024 // ~380 KB
+): Promise<string> {
+  let quality = 0.8;
+  let maxW = 1600;
+  let maxH = 1600;
+
+  let out = await compressToJpegDataURL(dataUrl, maxW, maxH, quality);
+  for (let pass = 0; pass < 6 && base64Bytes(out) > maxBytes; pass++) {
+    maxW = Math.max(900, Math.floor(maxW * 0.85));
+    maxH = Math.max(900, Math.floor(maxH * 0.85));
+    quality = Math.max(0.6, quality - 0.07);
+    out = await compressToJpegDataURL(out, maxW, maxH, quality);
+  }
+  return out;
+}

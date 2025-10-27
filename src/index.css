@@ -1,3 +1,25 @@
 @import "tailwindcss";
 
 html, body, #root { height: 100%; }
+
+/* Focus pulse for marker */
+.mtw-pulse {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  background: #22d3ee; /* cyan-400 */
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.4);
+}
+.mtw-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 2px solid #22d3ee;
+  border-radius: 50%;
+  animation: mtw-pulse 1.6s ease-out 3;
+}
+@keyframes mtw-pulse {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}

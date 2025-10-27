@@ -23,24 +23,32 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const TOKYO_STATION: [number, number] = [35.681236, 139.767125];
 
-function UseLocate({ onLocate }: { onLocate: (pos: [number, number]) => void }) {
+function UseLocate({
+  onLocate,
+  disableCenter = false,
+}: {
+  onLocate: (pos: [number, number]) => void;
+  disableCenter?: boolean;
+}) {
   const map = useMap();
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (g) => {
         const pos: [number, number] = [g.coords.latitude, g.coords.longitude];
-        map.setView(pos, 15);
+        if (!disableCenter) {
+          map.setView(pos, 15);
+        }
         onLocate(pos);
       },
       () => {},
       { enableHighAccuracy: true, timeout: 5000 }
     );
-  }, [map, onLocate]);
+  }, [map, onLocate, disableCenter]);
   return null;
 }
 
-// Focus controller to fly to a spot when focusId changes
+// Fly to a spot when focusId changes
 function FocusController({
   spots,
   focusId,
@@ -68,10 +76,19 @@ export default function MapView({
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
 
-  // Ref to the currently focused marker so we can open its popup
+  // Ref to open popup of the focused marker
   const focusedRef = useRef<L.Marker | null>(null);
 
-  // Auto-open the popup when focusId changes
+  // Toggle a brief pulse when focusId changes
+  const [showPulse, setShowPulse] = useState(false);
+  useEffect(() => {
+    if (!focusId) return;
+    setShowPulse(true);
+    const t = setTimeout(() => setShowPulse(false), 2000);
+    return () => clearTimeout(t);
+  }, [focusId]);
+
+  // Auto-open popup when focus changes
   useEffect(() => {
     focusedRef.current?.openPopup();
   }, [focusId, spots]);
@@ -83,7 +100,8 @@ export default function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <UseLocate onLocate={setUserPos} />
+      {/* Disable recentering to user if we're focusing a spot */}
+      <UseLocate onLocate={setUserPos} disableCenter={!!focusId} />
       <FocusController spots={spots} focusId={focusId} />
 
       {/* Saved graffiti markers */}
@@ -119,6 +137,25 @@ export default function MapView({
           </Popup>
         </Marker>
       ))}
+
+      {/* Brief pulse ring on the focused spot */}
+      {showPulse && focusId && (() => {
+        const target = spots.find((s) => s.id === focusId);
+        if (!target) return null;
+        return (
+          <Marker
+            position={[target.lat, target.lng]}
+            // Cyan pulsing div icon
+            icon={L.divIcon({
+              className: "",
+              html: `<div class="mtw-pulse"></div>`,
+              iconSize: [14, 14],
+              iconAnchor: [7, 7],
+            })}
+            interactive={false}
+          />
+        );
+      })()}
 
       {/* Optional: your current position */}
       {userMarker.map((pos, i) => (
