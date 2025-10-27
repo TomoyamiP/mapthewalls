@@ -50,9 +50,7 @@ function UseLocate({
     navigator.geolocation.getCurrentPosition(
       (g) => {
         const pos: [number, number] = [g.coords.latitude, g.coords.longitude];
-        if (!disableCenter) {
-          map.setView(pos, 15);
-        }
+        if (!disableCenter) map.setView(pos, 15);
         onLocate(pos);
       },
       () => {},
@@ -111,7 +109,7 @@ export default function MapView({
     <MapContainer
       center={TOKYO_STATION}
       zoom={13}
-      className="h-screen w-screen mtw-map"
+      className="h-screen w-screen relative mtw-map"
       scrollWheelZoom
     >
       <TileLayer
@@ -123,7 +121,7 @@ export default function MapView({
       <UseLocate onLocate={setUserPos} disableCenter={!!focusId} />
       <FocusController spots={spots} focusId={focusId} />
 
-      {/* Saved graffiti markers (now using RED icon) */}
+      {/* Saved graffiti markers (RED icon) */}
       {spots.map((s) => (
         <Marker
           key={s.id}
@@ -131,38 +129,37 @@ export default function MapView({
           ref={s.id === focusId ? focusedRef : undefined}
           icon={RedIcon}
         >
-          <Popup maxWidth={260}>
-            <div className="text-sm">
-              <div className="font-medium mb-2">{s.title}</div>
+          <Popup maxWidth={300}>
+            {/* Popup content — card look */}
+            <div className="min-w-[220px] max-w-[260px]">
+              <div className="font-medium text-zinc-100 mb-2 leading-tight">
+                {s.title}
+              </div>
 
               {s.photoUrl ? (
-                <img
-                  src={s.photoUrl}
-                  alt={s.title}
-                  className="block"
-                  style={{
-                    display: "block",
-                    width: 220,
-                    height: 140,
-                    objectFit: "cover",
-                    borderRadius: 8,
-                  }}
-                />
+                <div className="overflow-hidden rounded-lg border border-zinc-700/40 bg-black/30">
+                  <img
+                    src={s.photoUrl}
+                    alt={s.title}
+                    className="block w-full h-[140px] object-cover"
+                  />
+                </div>
               ) : (
-                <div className="text-xs text-gray-500">No photo</div>
+                <div className="h-[80px] w-full flex items-center justify-center text-xs text-zinc-400 rounded-md border border-zinc-700/40 bg-black/20">
+                  No photo
+                </div>
               )}
 
-              <div className="mt-2 text-xs opacity-70">
+              <div className="mt-2 text-[11px] text-zinc-400">
                 {new Date(s.createdAt).toLocaleString()}
               </div>
 
-              {/* actions */}
               <div className="mt-3">
                 <Link
                   to={`/spots/${s.id}`}
                   className="inline-flex items-center rounded-lg px-2.5 py-1.5
-                            text-xs font-medium bg-zinc-900 border border-zinc-700
-                            text-zinc-100 hover:bg-zinc-800 transition"
+                             text-xs font-medium bg-zinc-900/80 border border-zinc-700/50
+                             text-zinc-100 hover:bg-zinc-800/80 shadow-sm shadow-black/20 transition"
                 >
                   View details
                 </Link>
@@ -179,7 +176,6 @@ export default function MapView({
         return (
           <Marker
             position={[target.lat, target.lng]}
-            // Cyan pulsing div icon
             icon={L.divIcon({
               className: "",
               html: `<div class="mtw-pulse"></div>`,
@@ -195,6 +191,9 @@ export default function MapView({
       {userMarker.map((pos, i) => (
         <Marker key={`u-${i}`} position={pos} />
       ))}
+
+      {/* Top gradient overlay for navbar readability */}
+      <div className="pointer-events-none absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-zinc-950/80 via-zinc-950/40 to-transparent z-[500]" />
     </MapContainer>
   );
 }

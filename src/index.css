@@ -54,3 +54,22 @@ html, body, #root { height: 100%; }
   background: rgba(39, 39, 42, 0.9) !important; /* zinc-800/90 */
   transform: scale(1.05);
 }
+
+/* MapTheWalls — Leaflet popup theming */
+.mtw-map .leaflet-popup {
+  margin-bottom: 10px;
+}
+.mtw-map .leaflet-popup-content-wrapper {
+  background: rgba(24, 24, 27, 0.90); /* zinc-900/90 */
+  color: #e4e4e7; /* zinc-200 */
+  border: 1px solid rgba(63, 63, 70, 0.5); /* zinc-700/50 */
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+.mtw-map .leaflet-popup-content {
+  margin: 10px 12px; /* tighter, card-like padding */
+}
+.mtw-map .leaflet-popup-tip {
+  background: rgba(24, 24, 27, 0.90);
+  border: 1px solid rgba(63, 63, 70, 0.5);
+}
