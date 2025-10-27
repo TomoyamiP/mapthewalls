@@ -1,73 +1,61 @@
-# React + TypeScript + Vite
+# MapTheWalls
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+MapTheWalls is a React-powered graffiti tracker that lets users map and catalog street art directly from their photos.  
+Each submission automatically uses GPS data from the image (or your current location) to drop a pin on the map — creating a living map of urban art around the world.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+- Interactive map built with React-Leaflet and OpenStreetMap tiles  
+- Smart photo uploads with HEIC to JPEG conversion, adaptive compression, and live preview  
+- Automatic location detection using EXIF GPS metadata or browser geolocation  
+- Offline storage via browser localStorage  
+- Gallery view with image thumbnails and metadata  
+- “Open in Map” action that jumps to the graffiti’s exact location  
+- Smooth fly-to animation and brief highlight around focused markers
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Built With
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React + TypeScript (Vite)  
+- Tailwind CSS  
+- React-Leaflet  
+- exifr (for GPS metadata extraction)  
+- LocalStorage for offline persistence
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Getting Started
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+npm install
+
+# Run the development server
+npm run dev
+
+Then visit http://localhost:5173/ in your browser.
+
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Roadmap
+	•	User-generated ratings and comments
+	•	Cloud upload (Rails or Node backend with Cloudinary)
+	•	Map filters by area, artist, or style
+	•	Mobile offline mode
+	•	Clustered thumbnails for dense graffiti areas
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+⸻
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Concept
+
+Every photo tells a story; every wall is a canvas.
+MapTheWalls makes street art discoverable by mapping creativity in real space and time.
+
+⸻
+
+Created by Paul Miyamoto
+
+Built in Tokyo with React, TypeScript, Tailwind, and curiosity.
