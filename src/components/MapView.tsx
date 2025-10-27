@@ -95,7 +95,7 @@ export default function MapView({
   }, [focusId, spots]);
 
   return (
-    <MapContainer center={TOKYO_STATION} zoom={13} className="h-screen w-screen" scrollWheelZoom>
+    <MapContainer center={TOKYO_STATION} zoom={13} className="h-screen w-screen mtw-map" scrollWheelZoom>
       <TileLayer
         attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

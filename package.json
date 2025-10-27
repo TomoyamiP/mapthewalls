@@ -13,6 +13,7 @@
     "exifr": "^7.1.3",
     "heic2any": "^0.0.4",
     "leaflet": "^1.9.4",
+    "lucide-react": "^0.548.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-leaflet": "^5.0.0",
