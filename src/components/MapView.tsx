@@ -1,5 +1,5 @@
 // src/components/MapView.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -40,9 +40,41 @@ function UseLocate({ onLocate }: { onLocate: (pos: [number, number]) => void }) 
   return null;
 }
 
-export default function MapView({ spots = [] as GraffitiSpot[] }) {
+// Focus controller to fly to a spot when focusId changes
+function FocusController({
+  spots,
+  focusId,
+}: {
+  spots: GraffitiSpot[];
+  focusId?: string;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!focusId) return;
+    const target = spots.find((s) => s.id === focusId);
+    if (!target) return;
+    map.flyTo([target.lat, target.lng], 17, { duration: 0.6 });
+  }, [focusId, spots, map]);
+  return null;
+}
+
+export default function MapView({
+  spots = [] as GraffitiSpot[],
+  focusId,
+}: {
+  spots?: GraffitiSpot[];
+  focusId?: string;
+}) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
+
+  // Ref to the currently focused marker so we can open its popup
+  const focusedRef = useRef<L.Marker | null>(null);
+
+  // Auto-open the popup when focusId changes
+  useEffect(() => {
+    focusedRef.current?.openPopup();
+  }, [focusId, spots]);
 
   return (
     <MapContainer center={TOKYO_STATION} zoom={13} className="h-screen w-screen" scrollWheelZoom>
@@ -50,11 +82,17 @@ export default function MapView({ spots = [] as GraffitiSpot[] }) {
         attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+
       <UseLocate onLocate={setUserPos} />
+      <FocusController spots={spots} focusId={focusId} />
 
       {/* Saved graffiti markers */}
       {spots.map((s) => (
-        <Marker key={s.id} position={[s.lat, s.lng]}>
+        <Marker
+          key={s.id}
+          position={[s.lat, s.lng]}
+          ref={s.id === focusId ? focusedRef : undefined}
+        >
           <Popup maxWidth={260}>
             <div className="text-sm">
               <div className="font-medium mb-2">{s.title}</div>

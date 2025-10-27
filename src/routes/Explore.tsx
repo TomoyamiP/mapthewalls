@@ -1,19 +1,21 @@
+// src/routes/Explore.tsx
 import { useEffect, useState } from "react";
 import MapView from "../components/MapView";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Modal from "../components/Modal";
 import PhotoField from "../components/PhotoField";
 import type { GraffitiSpot } from "../types";
 import { loadSpots, addSpot } from "../lib/storage";
 import { getPosition } from "../lib/geo";
 import { fileToDataURLWithHeicSupport, compressToJpegDataURL } from "../lib/images";
+import { readGpsFromFile } from "../lib/exif";
 
 export default function Explore() {
+  const [params] = useSearchParams();
+  const focusId = params.get("focus") || undefined;
   const [open, setOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [spots, setSpots] = useState<GraffitiSpot[]>([]);
-
-  // form fields (uncontrolled inputs are fine, but this is simplest to read/validate)
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
 
@@ -31,23 +33,27 @@ export default function Explore() {
       return;
     }
 
-  let photoUrl: string | undefined;
-  if (photoFile) {
-    try {
-      const raw = await fileToDataURLWithHeicSupport(photoFile); // handles HEIC → JPEG
-      photoUrl = await compressToJpegDataURL(raw, 1280, 1280, 0.75); // shrink + compress
-    } catch {
-      alert("Could not read/convert the selected photo.");
-      return;
+    // 1️⃣ LOCATION FIRST — prefer EXIF GPS from the original file; fallback to device position
+    let pos = await (photoFile ? readGpsFromFile(photoFile) : null);
+    if (!pos) {
+      pos = await getPosition();
     }
-  }
 
-    // Get location (geolocation or fallback)
-    const pos = await getPosition();
+    // 2️⃣ IMAGE NEXT — convert (handles HEIC→JPEG) and then compress so it fits in localStorage
+    let photoUrl: string | undefined;
+    if (photoFile) {
+      try {
+        const raw = await fileToDataURLWithHeicSupport(photoFile);
+        photoUrl = await compressToJpegDataURL(raw, 1280, 1280, 0.75);
+      } catch {
+        alert("Could not read/convert the selected photo.");
+        return;
+      }
+    }
 
-    // Build new spot
+    // 3️⃣ Build the new spot
     const spot: GraffitiSpot = {
-      id: (crypto?.randomUUID?.() ?? `${Date.now()}`),
+      id: crypto.randomUUID?.() ?? `${Date.now()}`,
       title: title.trim(),
       description: desc.trim() || undefined,
       photoUrl,
@@ -56,8 +62,8 @@ export default function Explore() {
       createdAt: new Date().toISOString(),
     };
 
+    // 4️⃣ Persist + update UI (with quota error handling)
     try {
-      // Persist + update UI
       addSpot(spot);
       setSpots((prev) => [...prev, spot]);
 
@@ -70,19 +76,15 @@ export default function Explore() {
       console.error(err);
       alert(
         "Could not save — the image is too large for local storage.\n\n" +
-        "Pick a smaller photo, or we can add automatic compression next."
+          "Pick a smaller photo, or we can add automatic compression next."
       );
-      // Keep the modal open so you can change the image without losing inputs
-      return;
+      return; // keep modal open so you can change the image
     }
-
-    // (Optional) little confirmation
-    // alert("Added! Check the map marker or the gallery.");
   }
 
   return (
     <div className="relative h-screen w-screen">
-      <MapView spots={spots} />
+      <MapView spots={spots} focusId={focusId} />
 
       {/* Top-left nav (fixed above map) */}
       <div className="fixed z-[10000] top-4 left-4 pointer-events-auto bg-zinc-900/80 text-zinc-100 rounded-lg px-3 py-2 text-sm">
