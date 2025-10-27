@@ -22,6 +22,19 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+// Custom RED icon for saved graffiti spots
+const RedIcon = L.icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  iconRetinaUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
 const TOKYO_STATION: [number, number] = [35.681236, 139.767125];
 
 function UseLocate({
@@ -95,7 +108,12 @@ export default function MapView({
   }, [focusId, spots]);
 
   return (
-    <MapContainer center={TOKYO_STATION} zoom={13} className="h-screen w-screen mtw-map" scrollWheelZoom>
+    <MapContainer
+      center={TOKYO_STATION}
+      zoom={13}
+      className="h-screen w-screen mtw-map"
+      scrollWheelZoom
+    >
       <TileLayer
         attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -105,12 +123,13 @@ export default function MapView({
       <UseLocate onLocate={setUserPos} disableCenter={!!focusId} />
       <FocusController spots={spots} focusId={focusId} />
 
-      {/* Saved graffiti markers */}
+      {/* Saved graffiti markers (now using RED icon) */}
       {spots.map((s) => (
         <Marker
           key={s.id}
           position={[s.lat, s.lng]}
           ref={s.id === focusId ? focusedRef : undefined}
+          icon={RedIcon}
         >
           <Popup maxWidth={260}>
             <div className="text-sm">
@@ -172,7 +191,7 @@ export default function MapView({
         );
       })()}
 
-      {/* Optional: your current position */}
+      {/* Optional: your current position (keeps default icon) */}
       {userMarker.map((pos, i) => (
         <Marker key={`u-${i}`} position={pos} />
       ))}
