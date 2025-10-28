@@ -78,6 +78,34 @@ function FocusController({
   return null;
 }
 
+/** Fit to all spots when there is no focusId */
+function FitToSpots({
+  spots,
+  enabled,
+}: {
+  spots: GraffitiSpot[];
+  enabled: boolean;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!enabled) return;
+    if (!spots || spots.length === 0) return;
+
+    if (spots.length === 1) {
+      const s = spots[0];
+      map.flyTo([s.lat, s.lng], 16, { duration: 0.5 });
+      return;
+    }
+
+    const bounds = new L.LatLngBounds(
+      spots.map((s) => new L.LatLng(s.lat, s.lng))
+    );
+    map.fitBounds(bounds, { padding: [60, 80], animate: true });
+  }, [enabled, spots, map]);
+
+  return null;
+}
+
 export default function MapView({
   spots = [] as GraffitiSpot[],
   focusId,
@@ -117,9 +145,12 @@ export default function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* Disable recentering to user if we're focusing a spot */}
-      <UseLocate onLocate={setUserPos} disableCenter={!!focusId} />
+      {/* Disable recentering to user if focusing a spot OR if spots exist */}
+      <UseLocate onLocate={setUserPos} disableCenter={!!focusId || spots.length > 0} />
       <FocusController spots={spots} focusId={focusId} />
+
+      {/* Fit to all markers when there's no focus target */}
+      <FitToSpots spots={spots} enabled={!focusId} />
 
       {/* Saved graffiti markers (RED icon) */}
       {spots.map((s) => (
