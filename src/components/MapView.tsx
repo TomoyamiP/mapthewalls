@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { GraffitiSpot } from "../types";
 import { Link } from "react-router-dom";
+import MarkerClusterGroup from "react-leaflet-cluster";
 
 // Fix default marker icons in Vite
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -106,6 +107,84 @@ function FitToSpots({
   return null;
 }
 
+/** Floating "Recenter to me" control */
+function RecenterButton({
+  userPos,
+  onSetUserPos,
+}: {
+  userPos: [number, number] | null;
+  onSetUserPos: (pos: [number, number]) => void;
+}) {
+  const map = useMap();
+
+  async function handleClick() {
+    if (userPos) {
+      map.flyTo(userPos, 15, { duration: 0.5 });
+      return;
+    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (g) => {
+        const pos: [number, number] = [g.coords.latitude, g.coords.longitude];
+        onSetUserPos(pos);
+        map.flyTo(pos, 15, { duration: 0.5 });
+      },
+      () => {}
+    );
+  }
+
+  return (
+    <div className="pointer-events-none absolute left-6 bottom-6 z-[10000]">
+      <button
+        type="button"
+        onClick={handleClick}
+        className="pointer-events-auto cursor-pointer select-none
+                   flex items-center gap-2 rounded-full px-3.5 py-2
+                   bg-zinc-900/90 hover:bg-zinc-800
+                   border border-zinc-700/60 shadow-xl transition active:scale-95
+                   text-sm text-zinc-100"
+        aria-label="Recenter to my location"
+        title="Recenter to my location"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M12 6a6 6 0 100 12 6 6 0 000-12z" fill="none" stroke="currentColor" strokeWidth="2" />
+        </svg>
+        Me
+      </button>
+    </div>
+  );
+}
+
+/** Custom dark cluster icon (with inner badge we can scale on hover) */
+function createDarkClusterIcon(cluster: any) {
+  const count = cluster.getChildCount();
+  const size = count < 10 ? 32 : count < 100 ? 40 : 48;
+  const color = "rgba(20,20,20,0.9)";
+  const border = "rgba(255,255,255,0.15)";
+  const text = "#f4f4f4";
+
+  return L.divIcon({
+    html: `
+      <div class="mtw-cluster-badge" style="
+        width:${size}px;
+        height:${size}px;
+        line-height:${size}px;
+        border-radius:50%;
+        background:${color};
+        color:${text};
+        border:1px solid ${border};
+        font-size:13px;
+        text-align:center;
+        box-shadow:0 0 6px rgba(0,0,0,0.4);
+      ">
+        ${count}
+      </div>
+    `,
+    className: "mtw-cluster-icon",
+    iconSize: [size, size],
+  });
+}
+
 export default function MapView({
   spots = [] as GraffitiSpot[],
   focusId,
@@ -116,10 +195,7 @@ export default function MapView({
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
 
-  // Ref to open popup of the focused marker
   const focusedRef = useRef<L.Marker | null>(null);
-
-  // Toggle a brief pulse when focusId changes
   const [showPulse, setShowPulse] = useState(false);
   useEffect(() => {
     if (!focusId) return;
@@ -127,8 +203,6 @@ export default function MapView({
     const t = setTimeout(() => setShowPulse(false), 2000);
     return () => clearTimeout(t);
   }, [focusId]);
-
-  // Auto-open popup when focus changes
   useEffect(() => {
     focusedRef.current?.openPopup();
   }, [focusId, spots]);
@@ -140,67 +214,94 @@ export default function MapView({
       className="h-screen w-screen relative mtw-map"
       scrollWheelZoom
     >
+      {/* Hover effects: subtle glow on pins; glow+scale on clusters */}
+      <style>{`
+        /* Pins: vibrant purple glow on hover */
+        .leaflet-marker-icon {
+          transition: filter 180ms ease;
+        }
+        .leaflet-marker-icon:hover {
+          filter:
+            drop-shadow(0 0 3px rgba(170, 90, 255, 0.9))
+            drop-shadow(0 0 8px rgba(150, 70, 255, 0.7))
+            drop-shadow(0 0 14px rgba(120, 50, 255, 0.55));
+        }
+
+        /* Clusters: larger scale + subtle purple aura */
+        .mtw-cluster-icon .mtw-cluster-badge {
+          transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+        .mtw-cluster-icon:hover .mtw-cluster-badge {
+          transform: scale(1.15);
+          box-shadow:
+            0 0 10px rgba(180, 100, 255, 0.5),
+            0 0 20px rgba(160, 80, 255, 0.35);
+        }
+      `}</style>
+
       <TileLayer
         attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* Disable recentering to user if focusing a spot OR if spots exist */}
       <UseLocate onLocate={setUserPos} disableCenter={!!focusId || spots.length > 0} />
       <FocusController spots={spots} focusId={focusId} />
-
-      {/* Fit to all markers when there's no focus target */}
       <FitToSpots spots={spots} enabled={!focusId} />
 
-      {/* Saved graffiti markers (RED icon) */}
-      {spots.map((s) => (
-        <Marker
-          key={s.id}
-          position={[s.lat, s.lng]}
-          ref={s.id === focusId ? focusedRef : undefined}
-          icon={RedIcon}
-        >
-          <Popup maxWidth={300}>
-            {/* Popup content — card look */}
-            <div className="min-w-[220px] max-w-[260px]">
-              <div className="font-medium text-zinc-100 mb-2 leading-tight">
-                {s.title}
-              </div>
-
-              {s.photoUrl ? (
-                <div className="overflow-hidden rounded-lg border border-zinc-700/40 bg-black/30">
-                  <img
-                    src={s.photoUrl}
-                    alt={s.title}
-                    className="block w-full h-[140px] object-cover"
-                  />
+      <MarkerClusterGroup
+        chunkedLoading
+        spiderfyOnMaxZoom
+        showCoverageOnHover={false}
+        maxClusterRadius={60}
+        iconCreateFunction={createDarkClusterIcon}
+      >
+        {spots.map((s) => (
+          <Marker
+            key={s.id}
+            position={[s.lat, s.lng]}
+            ref={s.id === focusId ? focusedRef : undefined}
+            icon={RedIcon}
+          >
+            <Popup maxWidth={300}>
+              <div className="min-w-[220px] max-w-[260px]">
+                <div className="font-medium text-zinc-100 mb-2 leading-tight">
+                  {s.title}
                 </div>
-              ) : (
-                <div className="h-[80px] w-full flex items-center justify-center text-xs text-zinc-400 rounded-md border border-zinc-700/40 bg-black/20">
-                  No photo
+
+                {s.photoUrl ? (
+                  <div className="overflow-hidden rounded-lg border border-zinc-700/40 bg-black/30">
+                    <img
+                      src={s.photoUrl}
+                      alt={s.title}
+                      className="block w-full h-[140px] object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-[80px] w-full flex items-center justify-center text-xs text-zinc-400 rounded-md border border-zinc-700/40 bg-black/20">
+                    No photo
+                  </div>
+                )}
+
+                <div className="mt-2 text-[11px] text-zinc-400">
+                  {new Date(s.createdAt).toLocaleString()}
                 </div>
-              )}
 
-              <div className="mt-2 text-[11px] text-zinc-400">
-                {new Date(s.createdAt).toLocaleString()}
+                <div className="mt-3">
+                  <Link
+                    to={`/spots/${s.id}`}
+                    className="inline-flex items-center rounded-lg px-2.5 py-1.5
+                               text-xs font-medium bg-zinc-900/80 border border-zinc-700/50
+                               text-zinc-100 hover:bg-zinc-800/80 shadow-sm shadow-black/20 transition"
+                  >
+                    View details
+                  </Link>
+                </div>
               </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MarkerClusterGroup>
 
-              <div className="mt-3">
-                <Link
-                  to={`/spots/${s.id}`}
-                  className="inline-flex items-center rounded-lg px-2.5 py-1.5
-                             text-xs font-medium bg-zinc-900/80 border border-zinc-700/50
-                             text-zinc-100 hover:bg-zinc-800/80 shadow-sm shadow-black/20 transition"
-                >
-                  View details
-                </Link>
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-
-      {/* Brief pulse ring on the focused spot */}
       {showPulse && focusId && (() => {
         const target = spots.find((s) => s.id === focusId);
         if (!target) return null;
@@ -218,12 +319,12 @@ export default function MapView({
         );
       })()}
 
-      {/* Optional: your current position (keeps default icon) */}
       {userMarker.map((pos, i) => (
         <Marker key={`u-${i}`} position={pos} />
       ))}
 
-      {/* Top gradient overlay for navbar readability */}
+      <RecenterButton userPos={userPos} onSetUserPos={setUserPos} />
+
       <div className="pointer-events-none absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-zinc-950/80 via-zinc-950/40 to-transparent z-[500]" />
     </MapContainer>
   );

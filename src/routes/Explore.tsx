@@ -1,7 +1,7 @@
 // src/routes/Explore.tsx
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { SprayCan } from "lucide-react";
+import { Camera } from "lucide-react";
 
 import MapView from "../components/MapView";
 import NavBar from "../components/NavBar";
@@ -94,11 +94,11 @@ export default function Explore() {
           aria-label="Add graffiti"
           className="pointer-events-auto cursor-pointer select-none
                      flex items-center justify-center
-                     h-14 w-14 rounded-full bg-zinc-900/90 hover:bg-zinc-800
+                     h-16 w-16 rounded-full bg-zinc-900/90 hover:bg-zinc-800
                      border border-zinc-700/60 shadow-xl transition active:scale-95"
           onClick={() => setOpen(true)}
         >
-          <SprayCan size={22} className="text-zinc-50" />
+          <Camera size={26} className="text-zinc-50" />
         </button>
 
         {/* Tooltip (fades + floats upward) */}
@@ -110,7 +110,7 @@ export default function Explore() {
                      border border-zinc-700/60 shadow-md transition-all duration-300 ease-out
                      whitespace-nowrap"
         >
-          Add Graffiti
+          Add Photo
         </div>
       </div>
 

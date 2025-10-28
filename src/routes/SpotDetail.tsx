@@ -18,6 +18,8 @@ import L from "leaflet";
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+// Default (blue) Leaflet pin — keep as global default in this file
 const DefaultIcon = L.icon({
   iconUrl: marker1x,
   iconRetinaUrl: marker2x,
@@ -26,6 +28,17 @@ const DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
+
+// NEW: Red pin to match Explore map
+const RedIcon = L.icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  iconRetinaUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
 /** Lightbox (same as before) */
 function Lightbox({
@@ -182,6 +195,7 @@ export default function SpotDetail() {
   const center = useMemo<[number, number] | null>(() => {
     if (!spot) return null;
     return [spot.lat, spot.lng];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot]);
 
   const avg = useMemo(() => (spot ? getAverageRating(spot) : null), [spot]);
@@ -325,7 +339,8 @@ export default function SpotDetail() {
                       attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Marker position={center} />
+                    {/* Use the same red icon as Explore */}
+                    <Marker position={center} icon={RedIcon} />
                   </MapContainer>
                 )}
               </div>
