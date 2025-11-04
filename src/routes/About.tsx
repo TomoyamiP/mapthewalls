@@ -5,7 +5,7 @@ export default function About() {
   return (
     <>
       <NavBar />
-      <main className="p-6 text-zinc-100 max-w-2xl mx-auto">
+      <main className="pt-20 px-6 text-zinc-200 bg-zinc-900 min-h-screen max-w-2xl mx-auto">
         <h1 className="text-2xl font-semibold mb-4">About Map The Walls</h1>
 
         <p className="mb-3 leading-relaxed">
