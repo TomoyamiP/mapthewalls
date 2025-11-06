@@ -200,6 +200,14 @@ export default function SpotDetail() {
 
   const avg = useMemo(() => (spot ? getAverageRating(spot) : null), [spot]);
 
+  // Robust vote count fallback
+  const voteCount = useMemo(() => {
+    if (!spot) return 0;
+    if (typeof (spot as any).ratingCount === "number") return (spot as any).ratingCount;
+    const r = (spot as any).ratings;
+    return Array.isArray(r) ? r.length : 0;
+  }, [spot]);
+
   if (!spot) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-200">
@@ -226,25 +234,21 @@ export default function SpotDetail() {
         {/* Top nav actions */}
         <div className="mb-5 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
-            <Link to="/gallery" className="text-sm underline text-zinc-300 hover:text-zinc-100">
+            <Link
+              to="/gallery"
+              className="text-sm text-zinc-300 hover:text-zinc-100 no-underline"
+            >
               ← Back to gallery
             </Link>
             <button
               onClick={() => navigate("/")}
-              className="text-sm underline text-zinc-300 hover:text-zinc-100"
+              className="text-sm text-zinc-300 hover:text-zinc-100 no-underline"
             >
               ← Back to map
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(`/?focus=${spot.id}`)}
-              className="rounded-lg px-3 py-1.5 text-sm bg-zinc-900/80 border border-zinc-700/50 hover:bg-zinc-800/80 shadow-sm shadow-black/20"
-            >
-              Open in map
-            </button>
-          </div>
+          {/* Removed the old 'Open in map' button from the top actions */}
         </div>
 
         {/* Two-column layout (photo left, sidebar right) */}
@@ -260,7 +264,7 @@ export default function SpotDetail() {
                 <img
                   src={spot.photoUrl}
                   alt={spot.title}
-                  className="w-full h-auto max-h-[70vh] object-contain"
+                  className="w-full h-auto max-h:[70vh] max-h-[70vh] object-contain"
                   draggable={false}
                 />
               </button>
@@ -292,7 +296,16 @@ export default function SpotDetail() {
                     if (updated) setSpot(updated);
                   }}
                 />
-                <RatingSummary avg={avg} count={spot.ratingCount ?? 0} />
+                <div className="text-right">
+                  <RatingSummary avg={avg} count={voteCount} />
+                  {voteCount > 0 ? (
+                    <div className="mt-0.5 text-xs text-zinc-400">
+                      Average: {(avg ?? 0).toFixed(1)} ({voteCount} {voteCount === 1 ? "vote" : "votes"})
+                    </div>
+                  ) : (
+                    <div className="mt-0.5 text-xs text-zinc-500">No ratings yet</div>
+                  )}
+                </div>
               </div>
 
               {/* Notes */}
@@ -307,14 +320,8 @@ export default function SpotDetail() {
 
               {/* Verdict actions + tally */}
               <div className="flex items-center gap-3">
-                <VerdictButtons
-                  spot={spot}
-                  onUpdated={(s) => setSpot(s)}
-                />
-                <VerdictTally
-                  buff={spot.buffCount ?? 0}
-                  frame={spot.frameCount ?? 0}
-                />
+                <VerdictButtons spot={spot} onUpdated={(s) => setSpot(s)} />
+                <VerdictTally buff={spot.buffCount ?? 0} frame={spot.frameCount ?? 0} />
               </div>
             </div>
 
@@ -323,7 +330,17 @@ export default function SpotDetail() {
 
             {/* Mini-map anchored at bottom of sidebar */}
             <div className="p-4">
-              <h2 className="text-sm text-zinc-300 mb-2">Location</h2>
+              {/* Header row with 'Location' on the left and 'Open in map' on the right */}
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm text-zinc-300">Location</h2>
+                <button
+                  onClick={() => navigate(`/?focus=${spot.id}`)}
+                  className="rounded-lg px-3 py-1.5 text-sm bg-zinc-900/80 border border-zinc-700/50 hover:bg-zinc-800/80 shadow-sm shadow-black/20"
+                >
+                  Open in map
+                </button>
+              </div>
+
               <div className="h-56 w-full rounded-xl overflow-hidden border border-zinc-700/40">
                 {center && (
                   <MapContainer
