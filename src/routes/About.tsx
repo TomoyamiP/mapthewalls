@@ -17,9 +17,18 @@ export default function About() {
         of galleries. Each marker represents a photo someone took when they stopped and looked twice.
       </p>
 
-      <p className="leading-relaxed">
-        Built by <strong>TomoyamiP</strong> in Tokyo, this project aims to document art that exists
-        in public space: raw, temporary, and sometimes gone by the next day.
+      <p className="text-zinc-100 mt-4 leading-relaxed">
+        Built by{" "}
+        <a
+          href="https://github.com/TomoyamiP"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-red-500 hover:text-red-400 no-underline"
+        >
+          TomoyamiP
+        </a>{" "}
+        in Tokyo — this project aims to document art that exists in public space: raw,
+        temporary, and sometimes gone by the next day.
       </p>
     </div>
   );
