@@ -1,5 +1,5 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Explore from "./routes/Explore";
 import Gallery from "./routes/Gallery";
 import SpotDetail from "./routes/SpotDetail";
@@ -21,11 +21,14 @@ function AppRoutes() {
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/spots/:id" element={<SpotDetail />} />
         {/* Fallback: full-page About when directly hitting /about or refreshing */}
-        <Route path="/about" element={
-          <div className="pt-16 px-4"> {/* offset for fixed NavBar */}
-            <About />
-          </div>
-        } />
+        <Route
+          path="/about"
+          element={
+            <div className="pt-16 px-4"> {/* offset for fixed NavBar */}
+              <About />
+            </div>
+          }
+        />
         <Route path="*" element={<Explore />} />
       </Routes>
 
@@ -42,14 +45,7 @@ function AboutModal() {
       <div className="max-w-2xl mx-auto">
         <About />
       </div>
-      <div className="mt-6 text-center">
-        <Link
-          to="/"
-          className="text-zinc-300 hover:text-white no-underline"
-        >
-          Back to map
-        </Link>
-      </div>
+      {/* Removed the "Back to map" link */}
     </Modal>
   );
 }

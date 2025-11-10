@@ -1,7 +1,25 @@
 // src/routes/About.tsx
+import { useNavigate } from "react-router-dom";
+
 export default function About() {
+  const navigate = useNavigate();
+
+  const handleClose = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/");
+  };
+
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-zinc-900/85 backdrop-blur-md rounded-2xl shadow-2xl text-zinc-100">
+    <div className="max-w-2xl mx-auto p-6 bg-zinc-900/85 backdrop-blur-md rounded-2xl shadow-2xl text-zinc-100 relative">
+      {/* Close (×) button in red */}
+      <button
+        onClick={handleClose}
+        aria-label="Close About"
+        className="absolute top-3 right-4 text-2xl text-red-500 hover:text-red-400"
+      >
+        ×
+      </button>
+
       <h1 className="text-2xl font-semibold mb-4">About Map The Walls</h1>
 
       <p className="mb-3 leading-relaxed">
