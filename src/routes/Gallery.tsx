@@ -43,7 +43,7 @@ export default function Gallery() {
 
   const sorted = useMemo(() => {
     const list = [...spots];
-    const getRating = (s: any) => s?.avgRating ?? s?.rating ?? 0;
+
     const getCreatedAt = (s: any) =>
       typeof s?.createdAt === "number"
         ? s.createdAt
@@ -51,21 +51,43 @@ export default function Gallery() {
         ? Date.parse(s.createdAt)
         : 0;
 
+    // Use your schema: average = ratingSum / ratingCount (fallback 0)
+    const getRating = (s: any): number => {
+      const sum = Number(s?.ratingSum ?? 0);
+      const cnt = Number(s?.ratingCount ?? 0);
+      return cnt > 0 && isFinite(sum) && isFinite(cnt) ? sum / cnt : 0;
+    };
+
     switch (sortKey) {
       case "newest":
         return list.sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
-      case "rating_desc":
-        return list.sort((a, b) => getRating(b) - getRating(a) || getCreatedAt(b) - getCreatedAt(a));
-      case "rating_asc":
-        return list.sort((a, b) => getRating(a) - getRating(b) || getCreatedAt(b) - getCreatedAt(a));
+
+      case "rating_desc": // Highest ranked first
+        return list.sort(
+          (a, b) =>
+            getRating(b) - getRating(a) ||
+            // tie-breakers: more votes first, then newest
+            (Number(b?.ratingCount ?? 0) - Number(a?.ratingCount ?? 0)) ||
+            getCreatedAt(b) - getCreatedAt(a)
+        );
+
+      case "rating_asc": // Lowest ranked first
+        return list.sort(
+          (a, b) =>
+            getRating(a) - getRating(b) ||
+            (Number(a?.ratingCount ?? 0) - Number(b?.ratingCount ?? 0)) ||
+            getCreatedAt(b) - getCreatedAt(a)
+        );
+
       case "nearest":
         if (!userLoc) return list;
         return list.sort(
-          (a, b) =>
+          (a: any, b: any) =>
             haversineMeters(userLoc, { lat: a.lat, lng: a.lng }) -
               haversineMeters(userLoc, { lat: b.lat, lng: b.lng }) ||
             getCreatedAt(b) - getCreatedAt(a)
         );
+
       default:
         return list;
     }
