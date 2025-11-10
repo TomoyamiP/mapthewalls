@@ -1,49 +1,110 @@
 // src/routes/Gallery.tsx
 import { useEffect, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import type { GraffitiSpot } from "../types";
 import { loadSpots } from "../lib/storage";
 
 export default function Gallery() {
   const [spots, setSpots] = useState<GraffitiSpot[]>([]);
+  const [sortKey, setSortKey] = useState<"nearest" | "newest" | "rating_desc" | "rating_asc">("newest");
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     setSpots(loadSpots());
   }, []);
 
-  const sorted = useMemo(
-    () =>
-      [...spots].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ),
-    [spots]
-  );
+  // If user selects "Nearest", request geolocation once
+  useEffect(() => {
+    if (sortKey !== "nearest" || userLoc) return;
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => void 0,
+        { enableHighAccuracy: true, maximumAge: 60_000, timeout: 10_000 }
+      );
+    }
+  }, [sortKey, userLoc]);
+
+  // Tiny, global Haversine helper (meters)
+  const haversineMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const R = 6371e3;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const s =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  };
+
+  const sorted = useMemo(() => {
+    const list = [...spots];
+    const getRating = (s: any) => s?.avgRating ?? s?.rating ?? 0;
+    const getCreatedAt = (s: any) =>
+      typeof s?.createdAt === "number"
+        ? s.createdAt
+        : s?.createdAt
+        ? Date.parse(s.createdAt)
+        : 0;
+
+    switch (sortKey) {
+      case "newest":
+        return list.sort((a, b) => getCreatedAt(b) - getCreatedAt(a));
+      case "rating_desc":
+        return list.sort((a, b) => getRating(b) - getRating(a) || getCreatedAt(b) - getCreatedAt(a));
+      case "rating_asc":
+        return list.sort((a, b) => getRating(a) - getRating(b) || getCreatedAt(b) - getCreatedAt(a));
+      case "nearest":
+        if (!userLoc) return list;
+        return list.sort(
+          (a, b) =>
+            haversineMeters(userLoc, { lat: a.lat, lng: a.lng }) -
+              haversineMeters(userLoc, { lat: b.lat, lng: b.lng }) ||
+            getCreatedAt(b) - getCreatedAt(a)
+        );
+      default:
+        return list;
+    }
+  }, [spots, sortKey, userLoc]);
 
   if (sorted.length === 0) {
     return (
-      <main className="min-h-screen bg-black text-zinc-100 p-6">
+      <main className="min-h-screen bg-black text-zinc-100 p-6 pt-20">
         <header className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Showcase</h1>
-          <Link to="/" className="text-sm underline text-zinc-300 hover:text-zinc-100">
-            Explore map
-          </Link>
+          <div className="text-sm text-zinc-400">
+            No spots yet. Add one from the map (+) and it’ll appear here.
+          </div>
         </header>
-        <div className="text-sm text-zinc-400">
-          No spots yet. Add one from the map (+) and it’ll appear here.
-        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black text-zinc-100 p-6">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Showcase</h1>
+    <main className="min-h-screen bg-black text-zinc-100 p-6 pt-20">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        {/* Sort selector */}
+        <div className="flex items-center gap-2 text-sm">
+          <label htmlFor="gallery-sort" className="text-zinc-400">
+            Sort by
+          </label>
+          <select
+            id="gallery-sort"
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as any)}
+            className="rounded-lg bg-zinc-900/70 text-zinc-100 border border-zinc-700 px-3 py-1.5 outline-none focus:border-zinc-500"
+          >
+            <option value="nearest">Nearest to me</option>
+            <option value="newest">Newest</option>
+            <option value="rating_desc">Highest ranked</option>
+            <option value="rating_asc">Lowest ranked</option>
+          </select>
+        </div>
+
         <div className="text-sm text-zinc-400">{sorted.length} spots</div>
-        <Link to="/" className="text-sm underline text-zinc-300 hover:text-zinc-100">
-          Explore map
-        </Link>
       </header>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
