@@ -20,7 +20,7 @@ export default function About() {
         ×
       </button>
 
-      <h1 className="text-2xl font-semibold mb-4">About Map The Walls</h1>
+      <h1 className="text-2xl font-semibold mb-4">A Record of What’s Already Fading</h1>
 
       <p className="mb-3 leading-relaxed">
         <strong>Map The Walls</strong> is a living record of graffiti and street art

@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
+
 
 html, body, #root { height: 100%; }
 
@@ -72,4 +75,19 @@ html, body, #root { height: 100%; }
 .mtw-map .leaflet-popup-tip {
   background: rgba(24, 24, 27, 0.90);
   border: 1px solid rgba(63, 63, 70, 0.5);
+}
+
+.font-marker {
+  font-family: 'Bungee', sans-serif;
+}
+
+.logo-text {
+  color: #ffffff; /* white text */
+  text-shadow: 2px 2px 6px rgba(225, 29, 72, 0.8); /* red glow (#e11d48) */
+  margin-left: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.logo-text:hover {
+  transform: scale(1.05);
 }
