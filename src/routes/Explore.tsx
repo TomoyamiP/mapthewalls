@@ -11,7 +11,7 @@ import PhotoField from "../components/PhotoField";
 import type { GraffitiSpot } from "../types";
 import { loadSpots, addSpot } from "../lib/storage";
 import { getPosition } from "../lib/geo";
-// ❌ removed: fileToDataURLWithHeicSupport, compressToTargetBytes
+// removed old image compression imports
 import { readGpsFromFile } from "../lib/exif";
 
 export default function Explore() {
@@ -20,11 +20,12 @@ export default function Explore() {
 
   const [open, setOpen] = useState(false);
 
-  // Keep the originally selected file ONLY for EXIF GPS (PhotoField may clear later)
+  // Keep original picked file only for EXIF GPS
   const [exifFile, setExifFile] = useState<File | null>(null);
 
-  // Supabase public URL produced by PhotoField upload
+  // Supabase results from PhotoField
   const [imageUrl, setImageUrl] = useState<string>("");
+  const [imagePath, setImagePath] = useState<string>(""); // ✅ NEW
 
   const [spots, setSpots] = useState<GraffitiSpot[]>([]);
   const [title, setTitle] = useState("");
@@ -43,13 +44,12 @@ export default function Explore() {
       return;
     }
 
-    // Optional: require a photo
     if (!imageUrl) {
       const ok = confirm("No photo uploaded yet. Save without an image?");
       if (!ok) return;
     }
 
-    // 1) Location first (prefer EXIF from the originally picked file, fallback to device)
+    // 1) Location (prefer EXIF, fallback to device)
     let pos = await (exifFile ? readGpsFromFile(exifFile) : null);
     if (!pos) {
       try {
@@ -60,12 +60,13 @@ export default function Explore() {
       }
     }
 
-    // 2) Build the spot (photoUrl now comes from Supabase)
+    // 2) Build the spot (we'll add photoPath in the next step)
     const spot: GraffitiSpot = {
       id: crypto.randomUUID?.() ?? `${Date.now()}`,
       title: title.trim(),
       description: desc.trim() || undefined,
       photoUrl: imageUrl || undefined,
+      photoPath: imagePath || undefined,   // 👈 NEW
       lat: pos.lat,
       lng: pos.lng,
       createdAt: new Date().toISOString(),
@@ -76,10 +77,10 @@ export default function Explore() {
       addSpot(spot);
       setSpots((prev) => [...prev, spot]);
 
-      // Reset form
       setOpen(false);
       setExifFile(null);
       setImageUrl("");
+      setImagePath(""); // reset for next upload
       setTitle("");
       setDesc("");
     } catch (err) {
@@ -128,12 +129,11 @@ export default function Explore() {
             <label className="block text-xs uppercase tracking-wide text-zinc-400">Photo</label>
             <PhotoField
               label="Upload photo"
-              // Keep the first non-null file we see for EXIF (ignore later nulls)
               onChange={(file) => {
                 if (file) setExifFile(file);
               }}
-              // Get the Supabase public URL to save with the spot
               onUploaded={(url) => setImageUrl(url || "")}
+              onUploadedPath={(path) => setImagePath(path || "")} // ✅ NEW
             />
             <p className="text-[11px] text-zinc-500">
               HEIC is supported. Images are resized & compressed before upload.

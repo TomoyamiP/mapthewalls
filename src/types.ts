@@ -7,7 +7,7 @@ export interface GraffitiSpot {
   title: string;
   description?: string;
   photoUrl?: string;
-
+  photoPath?: string;
   lat: number;
   lng: number;
   createdAt: string; // ISO string

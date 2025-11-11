@@ -3,7 +3,7 @@
 // - Resizes + iteratively compresses to <= 1 MB
 // - Uploads to Supabase
 // - Keeps preview after upload (does NOT clear file on success)
-// - Legacy onChange(file) + new onUploaded(url)
+// - Legacy onChange(file) + new onUploaded(url) + onUploadedPath(path)
 
 import { useEffect, useRef, useState } from "react";
 import { fileToDataURLWithHeicSupport } from "../lib/images";
@@ -11,8 +11,9 @@ import { uploadToSupabase } from "../lib/upload";
 
 type PhotoFieldProps = {
   label?: string;
-  onChange?: (file: File | null) => void;     // legacy: parent may expect File
-  onUploaded?: (url: string | null) => void;  // new: Supabase public URL
+  onChange?: (file: File | null) => void;          // legacy: parent may expect File
+  onUploaded?: (url: string | null) => void;       // Supabase public URL
+  onUploadedPath?: (path: string | null) => void;  // Supabase object path (for admin delete)
   initialFile?: File | null;
 };
 
@@ -56,6 +57,7 @@ export default function PhotoField({
   label = "Photo",
   onChange,
   onUploaded,
+  onUploadedPath,
   initialFile = null,
 }: PhotoFieldProps) {
   const [file, setFile] = useState<File | null>(initialFile);
@@ -137,19 +139,19 @@ export default function PhotoField({
         { type: "image/jpeg" }
       );
 
-      const publicUrl = await uploadToSupabase(finalFile);
-      console.log("Uploaded to Supabase:", publicUrl);
+      const { publicUrl, path } = await uploadToSupabase(finalFile);
+      console.log("Uploaded to Supabase:", publicUrl, "(path:", path, ")");
 
-      // Report URL to parent for saving
-      onUploaded?.(publicUrl);
+      onUploaded?.(publicUrl);       // tell parent the URL to save
+      onUploadedPath?.(path);        // tell parent the storage path (for admin delete)
 
       // ✅ Do NOT clear file/input here — keep preview visible
-      // (No onChange(null), no setFile(null), no inputRef reset)
 
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Upload failed");
       onUploaded?.(null);
+      onUploadedPath?.(null);
     } finally {
       setUploading(false);
     }
