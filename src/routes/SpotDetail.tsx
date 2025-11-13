@@ -8,7 +8,8 @@ import {
   loadSpots,
   rateSpot,
   saveSpots,
-} from "../lib/storage";import NavBar from "../components/NavBar";
+} from "../lib/storage";
+import NavBar from "../components/NavBar";
 
 // UI pieces
 import StarRating from "../components/StarRating";
@@ -195,6 +196,11 @@ export default function SpotDetail() {
   const isAdmin =
     typeof window !== "undefined" && localStorage.getItem("admin") === "true";
 
+  // Admin inline edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+
   // For showing the user's own rating on the stars
   const userRated = useMemo(
     () => (spot ? getLocalVote(spot.id).rated ?? null : null),
@@ -223,34 +229,72 @@ export default function SpotDetail() {
     return Array.isArray(r) ? r.length : 0;
   }, [spot]);
 
-async function handleAdminDelete() {
-  if (!spot) return;
+  async function handleAdminDelete() {
+    if (!spot) return;
 
-  const ok = confirm("Delete this photo and remove this spot?");
-  if (!ok) return;
+    const ok = confirm("Delete this photo and remove this spot?");
+    if (!ok) return;
 
-  try {
-    // 1) Try to delete the image from Supabase (if we have a path)
-    if (spot.photoPath) {
-      try {
-        await deleteFromSupabase(spot.photoPath);
-      } catch (err) {
-        console.warn("Supabase delete failed (continuing anyway):", err);
+    try {
+      // 1) Try to delete the image from Supabase (if we have a path)
+      if (spot.photoPath) {
+        try {
+          await deleteFromSupabase(spot.photoPath);
+        } catch (err) {
+          console.warn("Supabase delete failed (continuing anyway):", err);
+        }
       }
+
+      // 2) Remove the spot from the real spots list (KEY = 'graffitiSpots')
+      const all = loadSpots();
+      const filtered = all.filter((s) => s.id !== spot.id);
+      saveSpots(filtered);
+
+      // 3) Navigate back to gallery
+      navigate("/gallery");
+    } catch (err) {
+      console.error(err);
+      alert("Could not delete spot.");
+    }
+  }
+
+  function handleAdminStartEdit() {
+    if (!spot) return;
+    setEditTitle(spot.title || "");
+    setEditDesc(spot.description || "");
+    setIsEditing(true);
+  }
+
+  function handleAdminCancelEdit() {
+    setIsEditing(false);
+  }
+
+  function handleAdminSaveEdit() {
+    if (!spot) return;
+
+    const nextTitle = editTitle.trim();
+    const nextDesc = editDesc.trim();
+
+    if (!nextTitle) {
+      alert("Title cannot be empty.");
+      return;
     }
 
-    // 2) Remove the spot from the real spots list (KEY = 'graffitiSpots')
     const all = loadSpots();
-    const filtered = all.filter((s) => s.id !== spot.id);
-    saveSpots(filtered); // 👈 use the helper, not localStorage.setItem("spots", ...)
+    const idx = all.findIndex((s) => s.id === spot.id);
+    if (idx < 0) return;
 
-    // 3) Navigate back to gallery
-    navigate("/gallery");
-  } catch (err) {
-    console.error(err);
-    alert("Could not delete spot.");
+    const updated: GraffitiSpot = {
+      ...all[idx],
+      title: nextTitle,
+      description: nextDesc || undefined,
+    };
+
+    all[idx] = updated;
+    saveSpots(all);
+    setSpot(updated);
+    setIsEditing(false);
   }
-}
 
   if (!spot) {
     return (
@@ -294,8 +338,6 @@ async function handleAdminDelete() {
               ← Back to map
             </button>
           </div>
-
-          {/* Removed the old 'Open in map' button from the top actions */}
         </div>
 
         {/* Two-column layout (photo left, sidebar right) */}
@@ -326,23 +368,67 @@ async function handleAdminDelete() {
           <aside className="rounded-2xl border border-zinc-700/40 bg-zinc-900/50 shadow-lg shadow-black/30 flex flex-col">
             <div className="p-4 sm:p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h1 className="text-lg sm:text-xl font-semibold text-zinc-100">
-                    {spot.title || "Untitled"}
-                  </h1>
-                  <div className="mt-1 text-xs text-zinc-400">
-                    Added {new Date(spot.createdAt).toLocaleString()}
-                  </div>
+                <div className="flex-1 min-w-0">
+                  {isAdmin && isEditing ? (
+                    <>
+                      <input
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
+                        placeholder="Title"
+                      />
+                      <div className="mt-1 text-xs text-zinc-400">
+                        Added {new Date(spot.createdAt).toLocaleString()}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h1 className="text-lg sm:text-xl font-semibold text-zinc-100 break-words">
+                        {spot.title || "Untitled"}
+                      </h1>
+                      <div className="mt-1 text-xs text-zinc-400">
+                        Added {new Date(spot.createdAt).toLocaleString()}
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={handleAdminDelete}
-                    className="rounded-lg px-3 py-1.5 text-xs bg-red-500/10 text-red-400 border border-red-500/40 hover:bg-red-500/20"
-                  >
-                    Delete photo + spot
-                  </button>
+                {isAdmin && !isEditing && (
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleAdminStartEdit}
+                      className="rounded-lg px-3 py-1.5 text-xs bg-zinc-700/40 text-zinc-100 border border-zinc-600/60 hover:bg-zinc-600/50"
+                    >
+                      Edit title/notes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAdminDelete}
+                      className="rounded-lg px-3 py-1.5 text-xs bg-red-500/10 text-red-400 border border-red-500/40 hover:bg-red-500/20"
+                    >
+                      Delete photo + spot
+                    </button>
+                  </div>
+                )}
+
+                {isAdmin && isEditing && (
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleAdminSaveEdit}
+                      className="rounded-lg px-3 py-1.5 text-xs bg-emerald-500/90 text-zinc-950 border border-emerald-400/80 hover:bg-emerald-400"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAdminCancelEdit}
+                      className="rounded-lg px-3 py-1.5 text-xs bg-zinc-800 text-zinc-200 border border-zinc-600/70 hover:bg-zinc-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -370,14 +456,27 @@ async function handleAdminDelete() {
                 </div>
               </div>
 
-              {/* Notes */}
-              {spot.description && (
+              {/* Notes / description */}
+              {isAdmin && isEditing ? (
                 <div>
                   <h2 className="text-xs text-zinc-400 mb-1">Notes</h2>
-                  <p className="text-sm text-zinc-200 whitespace-pre-wrap">
-                    {spot.description}
-                  </p>
+                  <textarea
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
+                    placeholder="Details, artist, directions…"
+                  />
                 </div>
+              ) : (
+                spot.description && (
+                  <div>
+                    <h2 className="text-xs text-zinc-400 mb-1">Notes</h2>
+                    <p className="text-sm text-zinc-200 whitespace-pre-wrap">
+                      {spot.description}
+                    </p>
+                  </div>
+                )
               )}
 
               {/* Verdict actions + tally */}
