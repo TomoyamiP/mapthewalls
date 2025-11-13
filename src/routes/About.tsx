@@ -29,13 +29,24 @@ export default function About() {
         disappear overnight. This app tries to keep track of that movement before it’s gone.
       </p>
 
-      <p className="mb-3 leading-relaxed">
+      <p className="mb-6 leading-relaxed">
         The project started as a way to mix tech and curiosity — to notice what’s around us,
         to map it, and to give credit to the people keeping visual culture alive outside
         of galleries. Each marker represents a photo someone took when they stopped and looked twice.
       </p>
 
-      <p className="text-zinc-100 mt-4 leading-relaxed">
+      {/* ---------- Minimal instructions section ---------- */}
+      <div className="mt-4 space-y-2">
+        <h2 className="text-sm uppercase tracking-wide text-zinc-400">How to use</h2>
+        <ul className="text-sm text-zinc-300 space-y-1">
+          <li>• Tap the camera icon to add a new graffiti photo (Explore)</li>
+          <li>• Spots save locally and stay anonymous</li>
+          <li>• Tap any pin to open details</li>
+          <li>• Rate pieces 1–5 stars and/or vote “buff it / frame it”</li>
+        </ul>
+      </div>
+
+      <p className="text-zinc-100 mt-8 leading-relaxed">
         Built by{" "}
         <a
           href="https://github.com/TomoyamiP"
