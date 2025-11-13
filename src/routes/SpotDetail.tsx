@@ -2,8 +2,13 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraffitiSpot } from "../types";
-import { getAverageRating, getLocalVote, loadSpots, rateSpot } from "../lib/storage";
-import NavBar from "../components/NavBar";
+import {
+  getAverageRating,
+  getLocalVote,
+  loadSpots,
+  rateSpot,
+  saveSpots,
+} from "../lib/storage";import NavBar from "../components/NavBar";
 
 // UI pieces
 import StarRating from "../components/StarRating";
@@ -18,6 +23,9 @@ import L from "leaflet";
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+// Supabase admin delete helper
+import { deleteFromSupabase } from "../lib/upload";
 
 // Default (blue) Leaflet pin — keep as global default in this file
 const DefaultIcon = L.icon({
@@ -184,8 +192,14 @@ export default function SpotDetail() {
   const [spot, setSpot] = useState<GraffitiSpot | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
+  const isAdmin =
+    typeof window !== "undefined" && localStorage.getItem("admin") === "true";
+
   // For showing the user's own rating on the stars
-  const userRated = useMemo(() => (spot ? getLocalVote(spot.id).rated ?? null : null), [spot]);
+  const userRated = useMemo(
+    () => (spot ? getLocalVote(spot.id).rated ?? null : null),
+    [spot]
+  );
 
   useEffect(() => {
     const all = loadSpots();
@@ -203,10 +217,40 @@ export default function SpotDetail() {
   // Robust vote count fallback
   const voteCount = useMemo(() => {
     if (!spot) return 0;
-    if (typeof (spot as any).ratingCount === "number") return (spot as any).ratingCount;
+    if (typeof (spot as any).ratingCount === "number")
+      return (spot as any).ratingCount;
     const r = (spot as any).ratings;
     return Array.isArray(r) ? r.length : 0;
   }, [spot]);
+
+async function handleAdminDelete() {
+  if (!spot) return;
+
+  const ok = confirm("Delete this photo and remove this spot?");
+  if (!ok) return;
+
+  try {
+    // 1) Try to delete the image from Supabase (if we have a path)
+    if (spot.photoPath) {
+      try {
+        await deleteFromSupabase(spot.photoPath);
+      } catch (err) {
+        console.warn("Supabase delete failed (continuing anyway):", err);
+      }
+    }
+
+    // 2) Remove the spot from the real spots list (KEY = 'graffitiSpots')
+    const all = loadSpots();
+    const filtered = all.filter((s) => s.id !== spot.id);
+    saveSpots(filtered); // 👈 use the helper, not localStorage.setItem("spots", ...)
+
+    // 3) Navigate back to gallery
+    navigate("/gallery");
+  } catch (err) {
+    console.error(err);
+    alert("Could not delete spot.");
+  }
+}
 
   if (!spot) {
     return (
@@ -217,7 +261,10 @@ export default function SpotDetail() {
             Spot not found.
           </div>
           <div className="mt-4">
-            <Link to="/gallery" className="text-sm underline text-zinc-300 hover:text-zinc-100">
+            <Link
+              to="/gallery"
+              className="text-sm underline text-zinc-300 hover:text-zinc-100"
+            >
               ← Back to gallery
             </Link>
           </div>
@@ -278,13 +325,25 @@ export default function SpotDetail() {
           {/* Sidebar card (right) */}
           <aside className="rounded-2xl border border-zinc-700/40 bg-zinc-900/50 shadow-lg shadow-black/30 flex flex-col">
             <div className="p-4 sm:p-5 space-y-4">
-              <div>
-                <h1 className="text-lg sm:text-xl font-semibold text-zinc-100">
-                  {spot.title || "Untitled"}
-                </h1>
-                <div className="mt-1 text-xs text-zinc-400">
-                  Added {new Date(spot.createdAt).toLocaleString()}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h1 className="text-lg sm:text-xl font-semibold text-zinc-100">
+                    {spot.title || "Untitled"}
+                  </h1>
+                  <div className="mt-1 text-xs text-zinc-400">
+                    Added {new Date(spot.createdAt).toLocaleString()}
+                  </div>
                 </div>
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleAdminDelete}
+                    className="rounded-lg px-3 py-1.5 text-xs bg-red-500/10 text-red-400 border border-red-500/40 hover:bg-red-500/20"
+                  >
+                    Delete photo + spot
+                  </button>
+                )}
               </div>
 
               {/* Rating row: interactive stars + numeric summary */}
@@ -300,10 +359,13 @@ export default function SpotDetail() {
                   <RatingSummary avg={avg} count={voteCount} />
                   {voteCount > 0 ? (
                     <div className="mt-0.5 text-xs text-zinc-400">
-                      Average: {(avg ?? 0).toFixed(1)} ({voteCount} {voteCount === 1 ? "vote" : "votes"})
+                      Average: {(avg ?? 0).toFixed(1)} (
+                      {voteCount} {voteCount === 1 ? "vote" : "votes"})
                     </div>
                   ) : (
-                    <div className="mt-0.5 text-xs text-zinc-500">No ratings yet</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">
+                      No ratings yet
+                    </div>
                   )}
                 </div>
               </div>
@@ -321,7 +383,10 @@ export default function SpotDetail() {
               {/* Verdict actions + tally */}
               <div className="flex items-center gap-3">
                 <VerdictButtons spot={spot} onUpdated={(s) => setSpot(s)} />
-                <VerdictTally buff={spot.buffCount ?? 0} frame={spot.frameCount ?? 0} />
+                <VerdictTally
+                  buff={spot.buffCount ?? 0}
+                  frame={spot.frameCount ?? 0}
+                />
               </div>
             </div>
 
@@ -367,7 +432,11 @@ export default function SpotDetail() {
       </main>
 
       {lightboxOpen && spot.photoUrl && (
-        <Lightbox src={spot.photoUrl} alt={spot.title} onClose={() => setLightboxOpen(false)} />
+        <Lightbox
+          src={spot.photoUrl}
+          alt={spot.title}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </div>
   );
