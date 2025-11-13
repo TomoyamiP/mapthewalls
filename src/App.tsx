@@ -1,7 +1,7 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import Explore from "./routes/Explore";
-import Gallery from "./routes/Gallery";
+import Archive from "./routes/Archive";
 import SpotDetail from "./routes/SpotDetail";
 import About from "./routes/About";
 import Modal from "./components/Modal";
@@ -18,7 +18,7 @@ function AppRoutes() {
       {/* Main content; if we came via modal state, keep showing the background route */}
       <Routes location={backgroundLocation || location}>
         <Route path="/" element={<Explore />} />
-        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/archive" element={<Archive />} />
         <Route path="/spots/:id" element={<SpotDetail />} />
         {/* Fallback: full-page About when directly hitting /about or refreshing */}
         <Route

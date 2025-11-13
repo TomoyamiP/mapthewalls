@@ -76,8 +76,8 @@ export default function NavBar() {
         <Link to="/" className="hover:text-white/90">
           Explore
         </Link>
-        <Link to="/gallery" className="hover:text-white/90">
-          Gallery
+        <Link to="/archive" className="hover:text-white/90">
+          Archive
         </Link>
         {/* Open About as modal by passing background location */}
         <Link

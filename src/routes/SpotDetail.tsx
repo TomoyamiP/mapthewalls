@@ -250,8 +250,8 @@ export default function SpotDetail() {
       const filtered = all.filter((s) => s.id !== spot.id);
       saveSpots(filtered);
 
-      // 3) Navigate back to gallery
-      navigate("/gallery");
+      // 3) Navigate back to archive
+      navigate("/archive");
     } catch (err) {
       console.error(err);
       alert("Could not delete spot.");
@@ -306,10 +306,10 @@ export default function SpotDetail() {
           </div>
           <div className="mt-4">
             <Link
-              to="/gallery"
+              to="/archive"
               className="text-sm underline text-zinc-300 hover:text-zinc-100"
             >
-              ← Back to gallery
+              ← Back to archive
             </Link>
           </div>
         </main>
@@ -326,10 +326,10 @@ export default function SpotDetail() {
         <div className="mb-5 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <Link
-              to="/gallery"
+              to="/archive"
               className="text-sm text-zinc-300 hover:text-zinc-100 no-underline"
             >
-              ← Back to gallery
+              ← Back to archive
             </Link>
             <button
               onClick={() => navigate("/")}

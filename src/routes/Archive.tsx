@@ -1,10 +1,10 @@
-// src/routes/Gallery.tsx
+// src/routes/Archive.tsx
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { GraffitiSpot } from "../types";
 import { loadSpots } from "../lib/storage";
 
-export default function Gallery() {
+export default function Archive() {
   const [spots, setSpots] = useState<GraffitiSpot[]>([]);
   const [sortKey, setSortKey] = useState<"nearest" | "newest" | "rating_desc" | "rating_asc">("newest");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -110,11 +110,11 @@ export default function Gallery() {
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         {/* Sort selector */}
         <div className="flex items-center gap-2 text-sm">
-          <label htmlFor="gallery-sort" className="text-zinc-400">
+          <label htmlFor="archive-sort" className="text-zinc-400">
             Sort by
           </label>
           <select
-            id="gallery-sort"
+            id="archive-sort"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as any)}
             className="rounded-lg bg-zinc-900/70 text-zinc-100 border border-zinc-700 px-3 py-1.5 outline-none focus:border-zinc-500"
