@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Camera } from "lucide-react";
+import { loadSpotsFromSupabase } from "../lib/spots";
+import { saveSpotToSupabase } from "../lib/spots";
 
 import MapView from "../components/MapView";
 import NavBar from "../components/NavBar";
@@ -31,9 +33,22 @@ export default function Explore() {
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
 
-  // Load existing spots once
+  // NEW: load from Supabase + localStorage
   useEffect(() => {
-    setSpots(loadSpots());
+    async function loadAll() {
+      // 1. Load spots from Supabase
+      const supabaseSpots = await loadSpotsFromSupabase();
+
+      // 2. Load local spots (old behavior)
+      const localSpots = loadSpots();
+
+      // 3. Merge (Supabase first, then local)
+      const merged = [...supabaseSpots, ...localSpots];
+
+      setSpots(merged);
+    }
+
+    loadAll();
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -76,6 +91,16 @@ export default function Explore() {
     try {
       addSpot(spot);
       setSpots((prev) => [...prev, spot]);
+
+      // NEW: save to Supabase
+      saveSpotToSupabase({
+        lat: spot.lat,
+        lng: spot.lng,
+        image_url: spot.photoUrl || "",
+        thumbnail_url: null,
+        title: spot.title,
+        note: spot.description,
+      });
 
       setOpen(false);
       setExifFile(null);

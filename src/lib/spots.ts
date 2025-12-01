@@ -15,3 +15,26 @@ export async function loadSpotsFromSupabase() {
 
   return data ?? [];
 }
+
+// Save a new spot to Supabase
+export async function saveSpotToSupabase(spot: {
+  lat: number;
+  lng: number;
+  image_url: string;
+  thumbnail_url?: string;
+  title?: string;
+  note?: string;
+}) {
+  const { data, error } = await supabase
+    .from("spots")
+    .insert([spot])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[Supabase] Failed to save spot:", error);
+    return null;
+  }
+
+  return data;
+}
