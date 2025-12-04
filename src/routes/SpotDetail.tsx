@@ -9,6 +9,7 @@ import {
   rateSpot,
   saveSpots,
 } from "../lib/storage";
+import { loadSpotsFromSupabase } from "../lib/spots";
 import NavBar from "../components/NavBar";
 
 // UI pieces
@@ -192,6 +193,7 @@ export default function SpotDetail() {
   const navigate = useNavigate();
   const [spot, setSpot] = useState<GraffitiSpot | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const isAdmin =
     typeof window !== "undefined" && localStorage.getItem("admin") === "true";
@@ -207,9 +209,31 @@ export default function SpotDetail() {
     [spot]
   );
 
+  // NEW: load spot from Supabase + localStorage by id
   useEffect(() => {
-    const all = loadSpots();
-    setSpot(all.find((s) => s.id === id) ?? null);
+    if (!id) return;
+
+    async function loadSpot() {
+      setLoading(true);
+
+      try {
+        // 1. Load from Supabase (shared)
+        const cloudSpots = await loadSpotsFromSupabase();
+
+        // 2. Load from localStorage (legacy)
+        const localSpots = loadSpots();
+
+        // 3. Merge both sources
+        const all = [...cloudSpots, ...localSpots];
+
+        const found = all.find((s) => s.id === id) ?? null;
+        setSpot(found);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSpot();
   }, [id]);
 
   const center = useMemo<[number, number] | null>(() => {
@@ -296,7 +320,20 @@ export default function SpotDetail() {
     setIsEditing(false);
   }
 
-  if (!spot) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-200">
+        <NavBar />
+        <main className="max-w-5xl mx-auto px-4 pt-16 pb-10">
+          <div className="rounded-2xl border border-zinc-700/40 bg-zinc-900/50 p-6 text-sm text-zinc-400 shadow-lg shadow-black/30">
+            Loading spot…
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!spot && !loading) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-200">
         <NavBar />
@@ -315,6 +352,11 @@ export default function SpotDetail() {
         </main>
       </div>
     );
+  }
+
+  if (!spot) {
+    // Should not normally hit this, but guards TS
+    return null;
   }
 
   return (
