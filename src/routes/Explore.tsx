@@ -94,6 +94,7 @@ export default function Explore() {
 
       // NEW: save to Supabase
       saveSpotToSupabase({
+        id: spot.id,
         lat: spot.lat,
         lng: spot.lng,
         image_url: spot.photoUrl || "",

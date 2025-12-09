@@ -9,7 +9,10 @@ import {
   rateSpot,
   saveSpots,
 } from "../lib/storage";
-import { loadSpotsFromSupabase } from "../lib/spots";
+import {
+  loadSpotsFromSupabase,
+  updateSpotRatingInSupabase,
+} from "../lib/spots";
 import NavBar from "../components/NavBar";
 
 // UI pieces
@@ -26,8 +29,11 @@ import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-// Supabase admin delete helper
-import { deleteFromSupabase } from "../lib/upload";
+// Supabase admin delete helpers
+import {
+  deleteFromSupabase,
+  deleteSpotRowFromSupabase,
+} from "../lib/upload";
 
 // Default (blue) Leaflet pin — keep as global default in this file
 const DefaultIcon = L.icon({
@@ -260,21 +266,31 @@ export default function SpotDetail() {
     if (!ok) return;
 
     try {
-      // 1) Try to delete the image from Supabase (if we have a path)
+      // 1) Delete the image from Supabase Storage (if we have a path)
       if (spot.photoPath) {
         try {
           await deleteFromSupabase(spot.photoPath);
         } catch (err) {
-          console.warn("Supabase delete failed (continuing anyway):", err);
+          console.warn(
+            "Supabase image delete failed (continuing anyway):",
+            err
+          );
         }
       }
 
-      // 2) Remove the spot from the real spots list (KEY = 'graffitiSpots')
+      // 2) Delete the row from Supabase spots table
+      try {
+        await deleteSpotRowFromSupabase(spot.id);
+      } catch (err) {
+        console.warn("Supabase row delete failed:", err);
+      }
+
+      // 3) Remove the spot from localStorage (legacy)
       const all = loadSpots();
       const filtered = all.filter((s) => s.id !== spot.id);
       saveSpots(filtered);
 
-      // 3) Navigate back to archive
+      // 4) Navigate back to archive
       navigate("/archive");
     } catch (err) {
       console.error(err);
@@ -478,9 +494,33 @@ export default function SpotDetail() {
               <div className="flex items-center justify-between gap-3">
                 <StarRating
                   value={userRated ?? avg ?? 0}
-                  onChange={(v) => {
+                  onChange={async (v) => {
+                    if (!spot) return;
+
+                    // Previous values from this spot (loaded from Supabase)
+                    const prevCount = (spot as any).ratingCount ?? 0;
+                    const prevSum = (spot as any).ratingSum ?? 0;
+
+                    // Treat this tap as one new rating
+                    const newCount = prevCount + 1;
+                    const newSum = prevSum + v;
+
+                    // Keep local behavior (localStorage + voting logic)
                     const updated = rateSpot(spot.id, v);
-                    if (updated) setSpot(updated);
+
+                    if (updated) {
+                      // Update local spot state so UI sees new average from Supabase numbers
+                      const withRatings = {
+                        ...(updated as any),
+                        ratingSum: newSum,
+                        ratingCount: newCount,
+                      };
+
+                      setSpot(withRatings as GraffitiSpot);
+
+                      // Update Supabase aggregate
+                      updateSpotRatingInSupabase(updated.id, newSum, newCount);
+                    }
                   }}
                 />
                 <div className="text-right">
