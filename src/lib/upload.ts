@@ -36,3 +36,15 @@ export async function deleteFromSupabase(path: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// 🔧 NEW: delete a spot row from the "spots" table by ID
+export async function deleteSpotRowFromSupabase(id: string): Promise<void> {
+  if (!id) return;
+
+  const { error } = await supabase
+    .from("spots")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw error;
+}
