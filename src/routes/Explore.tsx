@@ -34,18 +34,31 @@ export default function Explore() {
   const [desc, setDesc] = useState("");
 
   // NEW: load from Supabase + localStorage
+// Load from Supabase + localStorage and de-dupe by id
   useEffect(() => {
     async function loadAll() {
-      // 1. Load spots from Supabase
+      // 1. Load spots from Supabase (shared)
       const supabaseSpots = await loadSpotsFromSupabase();
 
-      // 2. Load local spots (old behavior)
+      // 2. Load spots from localStorage (legacy)
       const localSpots = loadSpots();
 
-      // 3. Merge (Supabase first, then local)
-      const merged = [...supabaseSpots, ...localSpots];
+      // 3. Merge, but keep one spot per id (Supabase wins)
+      const byId = new Map<string, GraffitiSpot>();
 
-      setSpots(merged);
+      // Prefer Supabase copies
+      for (const s of supabaseSpots) {
+        byId.set(s.id, s);
+      }
+
+      // Only add local spots that don't exist in Supabase
+      for (const s of localSpots) {
+        if (!byId.has(s.id)) {
+          byId.set(s.id, s);
+        }
+      }
+
+      setSpots(Array.from(byId.values()));
     }
 
     loadAll();
