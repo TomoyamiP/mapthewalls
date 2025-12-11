@@ -7,13 +7,13 @@ import { loadSpotsFromSupabase } from "../lib/spots";
 
 type SortKey = "nearest" | "newest" | "rating_desc" | "rating_asc";
 
-export default function Gallery() {
+export default function Archive() {
   const [spots, setSpots] = useState<GraffitiSpot[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("newest");
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const navigate = useNavigate();
 
-  // ✅ NEW: load spots from Supabase instead of localStorage
+  // ✅ Load spots from Supabase instead of localStorage
   useEffect(() => {
     let isMounted = true;
 
@@ -24,8 +24,7 @@ export default function Gallery() {
           setSpots(supabaseSpots);
         }
       } catch (error) {
-        console.error("Failed to load spots from Supabase in Gallery:", error);
-        // Optional: you could show a fallback UI or toast here later
+        console.error("Failed to load spots from Supabase in Archive:", error);
       }
     })();
 
@@ -98,88 +97,90 @@ export default function Gallery() {
   }, [spots, sortKey, userLoc]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-4 text-zinc-100">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-semibold">Archive</h1>
+    <div className="pt-16 min-h-screen bg-zinc-950 text-zinc-100">
+      <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h1 className="text-2xl font-semibold">Archive</h1>
 
-        <div className="flex items-center gap-2">
-          <label htmlFor="sort" className="text-sm text-zinc-300">
-            Sort by
-          </label>
-          <select
-            id="sort"
-            value={sortKey}
-            onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="bg-zinc-900 border border-zinc-700 rounded-md px-2 py-1 text-sm"
-          >
-            <option value="newest">Newest</option>
-            <option value="nearest">Nearest</option>
-            <option value="rating_desc">Rating (high → low)</option>
-            <option value="rating_asc">Rating (low → high)</option>
-          </select>
-        </div>
-      </div>
-
-      {sortedSpots.length === 0 ? (
-        <div className="mt-8 mb-6 min-h-[40vh] flex items-start">
-          <p className="text-zinc-200 text-base leading-relaxed">
-            No photos yet.
-            <br />
-            Add a spot from the map to see it here.
-          </p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {sortedSpots.map((spot) => (
-            <li
-              key={spot.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/70 border border-zinc-800 rounded-xl p-3"
+          <div className="flex items-center gap-2">
+            <label htmlFor="sort" className="text-sm text-zinc-300">
+              Sort by
+            </label>
+            <select
+              id="sort"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="bg-zinc-900 border border-zinc-700 rounded-md px-2 py-1 text-sm"
             >
-              <div className="flex items-center gap-3">
-                {spot.photoUrl && (
-                  <img
-                    src={spot.photoUrl}
-                    alt={spot.title || "Graffiti spot"}
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                )}
-                <div>
-                  <h2 className="font-semibold text-sm">
-                    {spot.title || "Untitled spot"}
-                  </h2>
-                  {spot.avgRating != null && (
-                    <p className="text-xs text-zinc-400">
-                      Rating: {spot.avgRating.toFixed(1)} ★
-                    </p>
-                  )}
-                  {spot.createdAt && (
-                    <p className="text-xs text-zinc-500">
-                      {new Date(spot.createdAt).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <option value="newest">Newest</option>
+              <option value="nearest">Nearest</option>
+              <option value="rating_desc">Rating (high → low)</option>
+              <option value="rating_asc">Rating (low → high)</option>
+            </select>
+          </div>
+        </div>
 
-              <div className="flex gap-2 self-start sm:self-center">
-                <button
-                  type="button"
-                  onClick={() => navigate(`/spots/${spot.id}`)}
-                  className="text-xs px-3 py-1 rounded-full border border-zinc-600 hover:border-zinc-300 hover:bg-zinc-800 transition"
-                >
-                  Details
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/?focus=${spot.id}`)}
-                  className="text-xs px-3 py-1 rounded-full border border-zinc-600 hover:border-zinc-300 hover:bg-zinc-800 transition"
-                >
-                  Open in map
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+        {sortedSpots.length === 0 ? (
+          <div className="mt-8 mb-6 min-h-[40vh] flex items-start">
+            <p className="text-zinc-200 text-base leading-relaxed">
+              No photos yet.
+              <br />
+              Add a spot from the map to see it here.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {sortedSpots.map((spot) => (
+              <li
+                key={spot.id}
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/70 border border-zinc-800 rounded-xl p-3"
+              >
+                <div className="flex items-center gap-3">
+                  {spot.photoUrl && (
+                    <img
+                      src={spot.photoUrl}
+                      alt={spot.title || "Graffiti spot"}
+                      className="w-20 h-20 object-cover rounded-lg"
+                    />
+                  )}
+                  <div>
+                    <h2 className="font-semibold text-sm">
+                      {spot.title || "Untitled spot"}
+                    </h2>
+                    {spot.avgRating != null && (
+                      <p className="text-xs text-zinc-400">
+                        Rating: {spot.avgRating.toFixed(1)} ★
+                      </p>
+                    )}
+                    {spot.createdAt && (
+                      <p className="text-xs text-zinc-500">
+                        {new Date(spot.createdAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 self-start sm:self-center">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/spots/${spot.id}`)}
+                    className="text-xs px-3 py-1 rounded-full border border-zinc-600 hover:border-zinc-300 hover:bg-zinc-800 transition"
+                  >
+                    Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/?focus=${spot.id}`)}
+                    className="text-xs px-3 py-1 rounded-full border border-zinc-600 hover:border-zinc-300 hover:bg-zinc-800 transition"
+                  >
+                    Open in map
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
