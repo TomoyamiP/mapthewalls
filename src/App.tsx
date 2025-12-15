@@ -46,20 +46,8 @@ function AboutModal() {
 
   return (
     <Modal open={true} onClose={() => navigate(-1)}>
-      {/* Centered modal content */}
       <div className="w-full max-w-3xl mx-auto px-4 pt-6 pb-4">
-        {/* Scrollable area (mobile-safe, dark-mode friendly) */}
-        <div
-          className="
-            max-h-[calc(100dvh-9rem)]
-            overflow-y-auto
-            overscroll-contain
-            pr-2
-            scrollbar-thin
-            scrollbar-thumb-zinc-700
-            scrollbar-track-zinc-900
-          "
-        >
+        <div className="mtw-about-scroll max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain pr-2">
           <About />
         </div>
       </div>
