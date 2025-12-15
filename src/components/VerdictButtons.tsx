@@ -3,8 +3,6 @@ import { useMemo, useState } from "react";
 import { Eraser, Square } from "lucide-react";
 import type { GraffitiSpot } from "../types";
 import { getLocalVote, voteVerdict } from "../lib/storage";
-
-// ✅ NEW: persist verdict to Supabase (spot_votes)
 import { upsertVote } from "../lib/votes";
 
 type Props = {
@@ -18,15 +16,17 @@ export default function VerdictButtons({ spot, onUpdated, className = "" }: Prop
   const [pending, setPending] = useState<"buff" | "frame" | null>(null);
 
   async function choose(kind: "buff" | "frame") {
+    setPending(kind);
+
+    // 1) Always update locally first (never “dead”)
+    const updated = voteVerdict(spot.id, kind);
+    if (updated) onUpdated(updated);
+
+    // 2) Best-effort save to Supabase
     try {
-      setPending(kind);
-
-      // 1) Save verdict to Supabase (prevents multi-voting per device/user_id policy)
       await upsertVote({ spotId: spot.id, verdict: kind });
-
-      // 2) Keep localStorage behavior for instant UI feedback
-      const updated = voteVerdict(spot.id, kind);
-      if (updated) onUpdated(updated);
+    } catch (err) {
+      console.warn("Supabase verdict save failed:", err);
     } finally {
       setPending(null);
     }
@@ -45,7 +45,7 @@ export default function VerdictButtons({ spot, onUpdated, className = "" }: Prop
                       active === "buff"
                         ? "bg-zinc-100 text-zinc-900 border-zinc-300"
                         : "bg-zinc-900/80 text-zinc-100 border border-zinc-700/50 hover:bg-zinc-800/80"
-                    }`}
+                    } ${pending ? "opacity-70" : ""}`}
       >
         <Eraser size={16} />
         <span>Buff it</span>
@@ -60,7 +60,7 @@ export default function VerdictButtons({ spot, onUpdated, className = "" }: Prop
                       active === "frame"
                         ? "bg-zinc-100 text-zinc-900 border-zinc-300"
                         : "bg-zinc-900/80 text-zinc-100 border border-zinc-700/50 hover:bg-zinc-800/80"
-                    }`}
+                    } ${pending ? "opacity-70" : ""}`}
       >
         <Square size={16} />
         <span>Frame it</span>

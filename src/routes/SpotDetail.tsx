@@ -2,11 +2,17 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraffitiSpot } from "../types";
-import { getLocalVote, loadSpots, rateSpot, saveSpots } from "../lib/storage";
+import {
+  getAverageRating,
+  getLocalVote,
+  loadSpots,
+  rateSpot,
+  saveSpots,
+} from "../lib/storage";
 import { loadSpotsFromSupabase } from "../lib/spots";
 import NavBar from "../components/NavBar";
 
-// ✅ Save votes to Supabase (spot_votes)
+// ✅ save votes to Supabase (spot_votes)
 import { upsertVote } from "../lib/votes";
 import { loadVoteSummary } from "../lib/voteSummary";
 
@@ -48,7 +54,7 @@ const RedIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
-/** Lightbox */
+/** Lightbox (same as before) */
 function Lightbox({
   src,
   alt,
@@ -186,12 +192,26 @@ function Lightbox({
   );
 }
 
+type VoteSummary = {
+  avgRating: number | null;
+  ratingCount: number;
+  buffCount: number;
+  frameCount: number;
+};
+
 export default function SpotDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [spot, setSpot] = useState<GraffitiSpot | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const [summary, setSummary] = useState<VoteSummary>({
+    avgRating: null,
+    ratingCount: 0,
+    buffCount: 0,
+    frameCount: 0,
+  });
 
   const isAdmin =
     typeof window !== "undefined" && localStorage.getItem("admin") === "true";
@@ -201,26 +221,29 @@ export default function SpotDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
-  // ✅ NEW: Supabase-backed summary (avg/count + buff/frame tallies)
-  const [voteSummary, setVoteSummary] = useState<{
-    avg: number | null;
-    count: number;
-    buff: number;
-    frame: number;
-  }>({ avg: null, count: 0, buff: 0, frame: 0 });
-
-  async function refreshVoteSummary(spotId: string) {
-    const summary = await loadVoteSummary(spotId);
-    setVoteSummary(summary);
-  }
-
-  // For showing the user's own rating on the stars (local device)
+  // For showing the user's own rating on the stars
   const userRated = useMemo(
     () => (spot ? getLocalVote(spot.id).rated ?? null : null),
     [spot]
   );
 
-  // Load spot from Supabase + localStorage by id
+  async function refreshSummary(spotId: string) {
+    try {
+      const s = await loadVoteSummary(spotId);
+      // Expecting: { avgRating, ratingCount, buffCount, frameCount }
+      setSummary({
+        avgRating: s?.avgRating ?? null,
+        ratingCount: s?.ratingCount ?? 0,
+        buffCount: s?.buffCount ?? 0,
+        frameCount: s?.frameCount ?? 0,
+      });
+    } catch (err) {
+      // Don’t break the page if summary fails
+      console.warn("Failed to load vote summary:", err);
+    }
+  }
+
+  // Load spot from Supabase + localStorage by id, then load vote summary
   useEffect(() => {
     if (!id) return;
 
@@ -230,8 +253,11 @@ export default function SpotDetail() {
         const cloudSpots = await loadSpotsFromSupabase();
         const localSpots = loadSpots();
         const all = [...cloudSpots, ...localSpots];
+
         const found = all.find((s) => s.id === id) ?? null;
         setSpot(found);
+
+        if (found) await refreshSummary(found.id);
       } finally {
         setLoading(false);
       }
@@ -240,21 +266,16 @@ export default function SpotDetail() {
     loadSpot();
   }, [id]);
 
-  // ✅ When spot loads, fetch live summary from spot_votes
-  useEffect(() => {
-    if (!spot) return;
-    refreshVoteSummary(spot.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spot?.id]);
-
   const center = useMemo<[number, number] | null>(() => {
     if (!spot) return null;
     return [spot.lat, spot.lng];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot]);
 
-  // ✅ Use Supabase summary for display
-  const avg = voteSummary.avg;
-  const voteCount = voteSummary.count;
+  // Fallback avg if summary is empty (legacy local ratings)
+  const avgFallback = useMemo(() => (spot ? getAverageRating(spot) : null), [spot]);
+  const avg = summary.avgRating ?? avgFallback;
+  const voteCount = summary.ratingCount;
 
   async function handleAdminDelete() {
     if (!spot) return;
@@ -367,7 +388,6 @@ export default function SpotDetail() {
       <NavBar />
 
       <main className="max-w-6xl mx-auto px-4 pt-16 pb-10">
-        {/* Top nav actions */}
         <div className="mb-5 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <Link
@@ -385,9 +405,7 @@ export default function SpotDetail() {
           </div>
         </div>
 
-        {/* Two-column layout (photo left, sidebar right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Photo card */}
           <section className="lg:col-span-2 rounded-2xl overflow-hidden border border-zinc-700/40 bg-zinc-900/50 shadow-lg shadow-black/30">
             {spot.photoUrl ? (
               <button
@@ -398,7 +416,7 @@ export default function SpotDetail() {
                 <img
                   src={spot.photoUrl}
                   alt={spot.title}
-                  className="w-full h-auto max-h-[70vh] object-contain"
+                  className="w-full h-auto max-h:[70vh] max-h-[70vh] object-contain"
                   draggable={false}
                 />
               </button>
@@ -409,7 +427,6 @@ export default function SpotDetail() {
             )}
           </section>
 
-          {/* Sidebar card */}
           <aside className="rounded-2xl border border-zinc-700/40 bg-zinc-900/50 shadow-lg shadow-black/30 flex flex-col">
             <div className="p-4 sm:p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
@@ -484,34 +501,34 @@ export default function SpotDetail() {
                   onChange={async (v) => {
                     if (!spot) return;
 
-                    // 1) Persist rating to Supabase
-                    await upsertVote({ spotId: spot.id, rating: v });
-
-                    // 2) Keep local behavior (instant feedback)
+                    // 1) ALWAYS update locally first (so refresh works even if Supabase fails)
                     const updated = rateSpot(spot.id, v);
                     if (updated) setSpot(updated);
 
-                    // 3) Refresh live summary (avg/count)
-                    await refreshVoteSummary(spot.id);
+                    // 2) Best-effort save to Supabase
+                    try {
+                      await upsertVote({ spotId: spot.id, rating: v });
+                      await refreshSummary(spot.id);
+                    } catch (err) {
+                      console.warn("Supabase rating save failed:", err);
+                      // no alert — don’t block UX
+                    }
                   }}
                 />
-
                 <div className="text-right">
                   <RatingSummary avg={avg} count={voteCount} />
                   {voteCount > 0 ? (
                     <div className="mt-0.5 text-xs text-zinc-400">
-                      Average: {(avg ?? 0).toFixed(1)} ({voteCount}{" "}
-                      {voteCount === 1 ? "vote" : "votes"})
+                      Average: {(avg ?? 0).toFixed(1)} (
+                      {voteCount} {voteCount === 1 ? "vote" : "votes"})
                     </div>
                   ) : (
-                    <div className="mt-0.5 text-xs text-zinc-500">
-                      No ratings yet
-                    </div>
+                    <div className="mt-0.5 text-xs text-zinc-500">No ratings yet</div>
                   )}
                 </div>
               </div>
 
-              {/* Notes / description */}
+              {/* Notes */}
               {isAdmin && isEditing ? (
                 <div>
                   <h2 className="text-xs text-zinc-400 mb-1">Notes</h2>
@@ -538,21 +555,18 @@ export default function SpotDetail() {
               <div className="flex items-center gap-3">
                 <VerdictButtons
                   spot={spot}
-                  onUpdated={async (s) => {
+                  onUpdated={(s) => {
                     setSpot(s);
-                    await refreshVoteSummary(s.id);
+                    // refresh counts (best effort)
+                    refreshSummary(s.id);
                   }}
                 />
-                <VerdictTally
-                  buff={voteSummary.buff}
-                  frame={voteSummary.frame}
-                />
+                <VerdictTally buff={summary.buffCount} frame={summary.frameCount} />
               </div>
             </div>
 
             <div className="border-t border-zinc-700/40" />
 
-            {/* Mini-map */}
             <div className="p-4">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-sm text-zinc-300">Location</h2>
@@ -589,11 +603,7 @@ export default function SpotDetail() {
       </main>
 
       {lightboxOpen && spot.photoUrl && (
-        <Lightbox
-          src={spot.photoUrl}
-          alt={spot.title}
-          onClose={() => setLightboxOpen(false)}
-        />
+        <Lightbox src={spot.photoUrl} alt={spot.title} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );
