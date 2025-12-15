@@ -4,6 +4,9 @@ import { Eraser, Square } from "lucide-react";
 import type { GraffitiSpot } from "../types";
 import { getLocalVote, voteVerdict } from "../lib/storage";
 
+// ✅ NEW: persist verdict to Supabase (spot_votes)
+import { upsertVote } from "../lib/votes";
+
 type Props = {
   spot: GraffitiSpot;
   onUpdated: (s: GraffitiSpot) => void;
@@ -12,11 +15,16 @@ type Props = {
 
 export default function VerdictButtons({ spot, onUpdated, className = "" }: Props) {
   const local = useMemo(() => getLocalVote(spot.id), [spot.id]);
-  const [pending, setPending] = useState<"buff"|"frame"|null>(null);
+  const [pending, setPending] = useState<"buff" | "frame" | null>(null);
 
-  async function choose(kind: "buff"|"frame") {
+  async function choose(kind: "buff" | "frame") {
     try {
       setPending(kind);
+
+      // 1) Save verdict to Supabase (prevents multi-voting per device/user_id policy)
+      await upsertVote({ spotId: spot.id, verdict: kind });
+
+      // 2) Keep localStorage behavior for instant UI feedback
       const updated = voteVerdict(spot.id, kind);
       if (updated) onUpdated(updated);
     } finally {
@@ -36,7 +44,7 @@ export default function VerdictButtons({ spot, onUpdated, className = "" }: Prop
                     border transition ${
                       active === "buff"
                         ? "bg-zinc-100 text-zinc-900 border-zinc-300"
-                        : "bg-zinc-900/80 text-zinc-100 border-zinc-700/50 hover:bg-zinc-800/80"
+                        : "bg-zinc-900/80 text-zinc-100 border border-zinc-700/50 hover:bg-zinc-800/80"
                     }`}
       >
         <Eraser size={16} />
@@ -51,7 +59,7 @@ export default function VerdictButtons({ spot, onUpdated, className = "" }: Prop
                     border transition ${
                       active === "frame"
                         ? "bg-zinc-100 text-zinc-900 border-zinc-300"
-                        : "bg-zinc-900/80 text-zinc-100 border-zinc-700/50 hover:bg-zinc-800/80"
+                        : "bg-zinc-900/80 text-zinc-100 border border-zinc-700/50 hover:bg-zinc-800/80"
                     }`}
       >
         <Square size={16} />

@@ -2,18 +2,13 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraffitiSpot } from "../types";
-import {
-  getAverageRating,
-  getLocalVote,
-  loadSpots,
-  rateSpot,
-  saveSpots,
-} from "../lib/storage";
-import {
-  loadSpotsFromSupabase,
-  updateSpotRatingInSupabase,
-} from "../lib/spots";
+import { getLocalVote, loadSpots, rateSpot, saveSpots } from "../lib/storage";
+import { loadSpotsFromSupabase } from "../lib/spots";
 import NavBar from "../components/NavBar";
+
+// ✅ Save votes to Supabase (spot_votes)
+import { upsertVote } from "../lib/votes";
+import { loadVoteSummary } from "../lib/voteSummary";
 
 // UI pieces
 import StarRating from "../components/StarRating";
@@ -30,10 +25,7 @@ import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
 // Supabase admin delete helpers
-import {
-  deleteFromSupabase,
-  deleteSpotRowFromSupabase,
-} from "../lib/upload";
+import { deleteFromSupabase, deleteSpotRowFromSupabase } from "../lib/upload";
 
 // Default (blue) Leaflet pin — keep as global default in this file
 const DefaultIcon = L.icon({
@@ -45,7 +37,7 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// NEW: Red pin to match Explore map
+// Red pin to match Explore map
 const RedIcon = L.icon({
   iconUrl:
     "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
@@ -56,7 +48,7 @@ const RedIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
-/** Lightbox (same as before) */
+/** Lightbox */
 function Lightbox({
   src,
   alt,
@@ -209,29 +201,35 @@ export default function SpotDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
-  // For showing the user's own rating on the stars
+  // ✅ NEW: Supabase-backed summary (avg/count + buff/frame tallies)
+  const [voteSummary, setVoteSummary] = useState<{
+    avg: number | null;
+    count: number;
+    buff: number;
+    frame: number;
+  }>({ avg: null, count: 0, buff: 0, frame: 0 });
+
+  async function refreshVoteSummary(spotId: string) {
+    const summary = await loadVoteSummary(spotId);
+    setVoteSummary(summary);
+  }
+
+  // For showing the user's own rating on the stars (local device)
   const userRated = useMemo(
     () => (spot ? getLocalVote(spot.id).rated ?? null : null),
     [spot]
   );
 
-  // NEW: load spot from Supabase + localStorage by id
+  // Load spot from Supabase + localStorage by id
   useEffect(() => {
     if (!id) return;
 
     async function loadSpot() {
       setLoading(true);
-
       try {
-        // 1. Load from Supabase (shared)
         const cloudSpots = await loadSpotsFromSupabase();
-
-        // 2. Load from localStorage (legacy)
         const localSpots = loadSpots();
-
-        // 3. Merge both sources
         const all = [...cloudSpots, ...localSpots];
-
         const found = all.find((s) => s.id === id) ?? null;
         setSpot(found);
       } finally {
@@ -242,22 +240,21 @@ export default function SpotDetail() {
     loadSpot();
   }, [id]);
 
+  // ✅ When spot loads, fetch live summary from spot_votes
+  useEffect(() => {
+    if (!spot) return;
+    refreshVoteSummary(spot.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spot?.id]);
+
   const center = useMemo<[number, number] | null>(() => {
     if (!spot) return null;
     return [spot.lat, spot.lng];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot]);
 
-  const avg = useMemo(() => (spot ? getAverageRating(spot) : null), [spot]);
-
-  // Robust vote count fallback
-  const voteCount = useMemo(() => {
-    if (!spot) return 0;
-    if (typeof (spot as any).ratingCount === "number")
-      return (spot as any).ratingCount;
-    const r = (spot as any).ratings;
-    return Array.isArray(r) ? r.length : 0;
-  }, [spot]);
+  // ✅ Use Supabase summary for display
+  const avg = voteSummary.avg;
+  const voteCount = voteSummary.count;
 
   async function handleAdminDelete() {
     if (!spot) return;
@@ -266,31 +263,24 @@ export default function SpotDetail() {
     if (!ok) return;
 
     try {
-      // 1) Delete the image from Supabase Storage (if we have a path)
       if (spot.photoPath) {
         try {
           await deleteFromSupabase(spot.photoPath);
         } catch (err) {
-          console.warn(
-            "Supabase image delete failed (continuing anyway):",
-            err
-          );
+          console.warn("Supabase image delete failed (continuing anyway):", err);
         }
       }
 
-      // 2) Delete the row from Supabase spots table
       try {
         await deleteSpotRowFromSupabase(spot.id);
       } catch (err) {
         console.warn("Supabase row delete failed:", err);
       }
 
-      // 3) Remove the spot from localStorage (legacy)
       const all = loadSpots();
       const filtered = all.filter((s) => s.id !== spot.id);
       saveSpots(filtered);
 
-      // 4) Navigate back to archive
       navigate("/archive");
     } catch (err) {
       console.error(err);
@@ -370,10 +360,7 @@ export default function SpotDetail() {
     );
   }
 
-  if (!spot) {
-    // Should not normally hit this, but guards TS
-    return null;
-  }
+  if (!spot) return null;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-200">
@@ -400,7 +387,7 @@ export default function SpotDetail() {
 
         {/* Two-column layout (photo left, sidebar right) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Photo card (left, spans 2 cols on desktop) */}
+          {/* Photo card */}
           <section className="lg:col-span-2 rounded-2xl overflow-hidden border border-zinc-700/40 bg-zinc-900/50 shadow-lg shadow-black/30">
             {spot.photoUrl ? (
               <button
@@ -411,7 +398,7 @@ export default function SpotDetail() {
                 <img
                   src={spot.photoUrl}
                   alt={spot.title}
-                  className="w-full h-auto max-h:[70vh] max-h-[70vh] object-contain"
+                  className="w-full h-auto max-h-[70vh] object-contain"
                   draggable={false}
                 />
               </button>
@@ -422,7 +409,7 @@ export default function SpotDetail() {
             )}
           </section>
 
-          {/* Sidebar card (right) */}
+          {/* Sidebar card */}
           <aside className="rounded-2xl border border-zinc-700/40 bg-zinc-900/50 shadow-lg shadow-black/30 flex flex-col">
             <div className="p-4 sm:p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
@@ -490,45 +477,31 @@ export default function SpotDetail() {
                 )}
               </div>
 
-              {/* Rating row: interactive stars + numeric summary */}
+              {/* Rating row */}
               <div className="flex items-center justify-between gap-3">
                 <StarRating
                   value={userRated ?? avg ?? 0}
                   onChange={async (v) => {
                     if (!spot) return;
 
-                    // Previous values from this spot (loaded from Supabase)
-                    const prevCount = (spot as any).ratingCount ?? 0;
-                    const prevSum = (spot as any).ratingSum ?? 0;
+                    // 1) Persist rating to Supabase
+                    await upsertVote({ spotId: spot.id, rating: v });
 
-                    // Treat this tap as one new rating
-                    const newCount = prevCount + 1;
-                    const newSum = prevSum + v;
-
-                    // Keep local behavior (localStorage + voting logic)
+                    // 2) Keep local behavior (instant feedback)
                     const updated = rateSpot(spot.id, v);
+                    if (updated) setSpot(updated);
 
-                    if (updated) {
-                      // Update local spot state so UI sees new average from Supabase numbers
-                      const withRatings = {
-                        ...(updated as any),
-                        ratingSum: newSum,
-                        ratingCount: newCount,
-                      };
-
-                      setSpot(withRatings as GraffitiSpot);
-
-                      // Update Supabase aggregate
-                      updateSpotRatingInSupabase(updated.id, newSum, newCount);
-                    }
+                    // 3) Refresh live summary (avg/count)
+                    await refreshVoteSummary(spot.id);
                   }}
                 />
+
                 <div className="text-right">
                   <RatingSummary avg={avg} count={voteCount} />
                   {voteCount > 0 ? (
                     <div className="mt-0.5 text-xs text-zinc-400">
-                      Average: {(avg ?? 0).toFixed(1)} (
-                      {voteCount} {voteCount === 1 ? "vote" : "votes"})
+                      Average: {(avg ?? 0).toFixed(1)} ({voteCount}{" "}
+                      {voteCount === 1 ? "vote" : "votes"})
                     </div>
                   ) : (
                     <div className="mt-0.5 text-xs text-zinc-500">
@@ -563,20 +536,24 @@ export default function SpotDetail() {
 
               {/* Verdict actions + tally */}
               <div className="flex items-center gap-3">
-                <VerdictButtons spot={spot} onUpdated={(s) => setSpot(s)} />
+                <VerdictButtons
+                  spot={spot}
+                  onUpdated={async (s) => {
+                    setSpot(s);
+                    await refreshVoteSummary(s.id);
+                  }}
+                />
                 <VerdictTally
-                  buff={spot.buffCount ?? 0}
-                  frame={spot.frameCount ?? 0}
+                  buff={voteSummary.buff}
+                  frame={voteSummary.frame}
                 />
               </div>
             </div>
 
-            {/* Divider */}
             <div className="border-t border-zinc-700/40" />
 
-            {/* Mini-map anchored at bottom of sidebar */}
+            {/* Mini-map */}
             <div className="p-4">
-              {/* Header row with 'Location' on the left and 'Open in map' on the right */}
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-sm text-zinc-300">Location</h2>
                 <button
@@ -602,7 +579,6 @@ export default function SpotDetail() {
                       attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    {/* Use the same red icon as Explore */}
                     <Marker position={center} icon={RedIcon} />
                   </MapContainer>
                 )}
