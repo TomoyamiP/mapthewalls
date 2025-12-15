@@ -207,9 +207,11 @@ function createDarkClusterIcon(cluster: any) {
 export default function MapView({
   spots = [] as GraffitiSpot[],
   focusId,
+  dimControls = false,
 }: {
   spots?: GraffitiSpot[];
   focusId?: string;
+  dimControls?: boolean;
 }) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
@@ -346,7 +348,13 @@ export default function MapView({
         <Marker key={`u-${i}`} position={pos} />
       ))}
 
-      <RecenterButton userPos={userPos} onSetUserPos={setUserPos} />
+      <div
+        className={`transition-opacity duration-200 ${
+          dimControls ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
+        <RecenterButton userPos={userPos} onSetUserPos={setUserPos} />
+      </div>
 
       <div className="pointer-events-none absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-zinc-950/80 via-zinc-950/40 to-transparent z-[500]" />
     </MapContainer>

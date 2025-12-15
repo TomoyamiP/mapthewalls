@@ -16,7 +16,7 @@ import { getPosition } from "../lib/geo";
 // removed old image compression imports
 import { readGpsFromFile } from "../lib/exif";
 
-export default function Explore() {
+export default function Explore({ dimControls = false }: { dimControls?: boolean }) {
   const [params] = useSearchParams();
   const focusId = params.get("focus") || undefined;
 
@@ -132,10 +132,14 @@ export default function Explore() {
   return (
     <div className="relative h-screen w-screen">
       <NavBar />
-      <MapView spots={spots} focusId={focusId} />
+      <MapView spots={spots} focusId={focusId} dimControls={dimControls} />
 
       {/* Floating Add button with upward-fading tooltip */}
-      <div className="fixed z-[10000] bottom-20 right-6 group">
+      <div
+        className={`fixed z-[10000] bottom-20 right-6 group transition-opacity duration-200 ${
+          dimControls ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
         <button
           aria-label="Add graffiti"
           className="pointer-events-auto cursor-pointer select-none

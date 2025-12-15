@@ -17,7 +17,10 @@ function AppRoutes() {
     <>
       {/* Main content; if we came via modal state, keep showing the background route */}
       <Routes location={backgroundLocation || location}>
-        <Route path="/" element={<Explore />} />
+        <Route
+          path="/"
+          element={<Explore dimControls={!!backgroundLocation} />}
+        />
         <Route path="/archive" element={<Archive />} />
         <Route path="/spots/:id" element={<SpotDetail />} />
         {/* Fallback: full-page About when directly hitting /about or refreshing */}
@@ -40,10 +43,14 @@ function AppRoutes() {
 
 function AboutModal() {
   const navigate = useNavigate();
+
   return (
     <Modal open={true} onClose={() => navigate(-1)}>
-      <div className="max-w-2xl mx-auto">
-        <About />
+      {/* Scroll container: keeps About readable on mobile */}
+      <div className="w-full max-w-2xl mx-auto px-4 py-4">
+        <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain pr-1">
+          <About />
+        </div>
       </div>
       {/* Removed the "Back to map" link */}
     </Modal>
