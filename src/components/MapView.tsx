@@ -11,6 +11,7 @@ import MarkerClusterGroup from "react-leaflet-cluster";
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker1x from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
 const DefaultIcon = L.icon({
   iconUrl: marker1x,
   iconRetinaUrl: marker2x,
@@ -98,9 +99,7 @@ function FitToSpots({
       return;
     }
 
-    const bounds = new L.LatLngBounds(
-      spots.map((s) => new L.LatLng(s.lat, s.lng))
-    );
+    const bounds = new L.LatLngBounds(spots.map((s) => new L.LatLng(s.lat, s.lng)));
     map.fitBounds(bounds, { padding: [60, 80], animate: true });
   }, [enabled, spots, map]);
 
@@ -175,28 +174,6 @@ function RecenterButton({
   );
 }
 
-  return (
-    <div className="pointer-events-none absolute left-6 bottom-6 z-[10000]">
-      <button
-        type="button"
-        onClick={handleClick}
-        className="pointer-events-auto cursor-pointer select-none
-                   flex items-center gap-2 rounded-full px-3.5 py-2
-                   bg-zinc-900/90 hover:bg-zinc-800
-                   border border-zinc-700/60 shadow-xl transition active:scale-95
-                   text-sm text-zinc-100"
-        aria-label="Recenter to my location"
-        title="Recenter to my location"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M12 6a6 6 0 100 12 6 6 0 000-12z" fill="none" stroke="currentColor" strokeWidth="2" />
-        </svg>
-        Me
-      </button>
-    </div>
-  );
-}
-
 /** Custom dark cluster icon (with inner badge we can scale on hover) */
 function createDarkClusterIcon(cluster: any) {
   const count = cluster.getChildCount();
@@ -239,12 +216,14 @@ export default function MapView({
 
   const focusedRef = useRef<L.Marker | null>(null);
   const [showPulse, setShowPulse] = useState(false);
+
   useEffect(() => {
     if (!focusId) return;
     setShowPulse(true);
     const t = setTimeout(() => setShowPulse(false), 2000);
     return () => clearTimeout(t);
   }, [focusId]);
+
   useEffect(() => {
     focusedRef.current?.openPopup();
   }, [focusId, spots]);
@@ -344,22 +323,24 @@ export default function MapView({
         ))}
       </MarkerClusterGroup>
 
-      {showPulse && focusId && (() => {
-        const target = spots.find((s) => s.id === focusId);
-        if (!target) return null;
-        return (
-          <Marker
-            position={[target.lat, target.lng]}
-            icon={L.divIcon({
-              className: "",
-              html: `<div class="mtw-pulse"></div>`,
-              iconSize: [14, 14],
-              iconAnchor: [7, 7],
-            })}
-            interactive={false}
-          />
-        );
-      })()}
+      {showPulse &&
+        focusId &&
+        (() => {
+          const target = spots.find((s) => s.id === focusId);
+          if (!target) return null;
+          return (
+            <Marker
+              position={[target.lat, target.lng]}
+              icon={L.divIcon({
+                className: "",
+                html: `<div class="mtw-pulse"></div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+              })}
+              interactive={false}
+            />
+          );
+        })()}
 
       {userMarker.map((pos, i) => (
         <Marker key={`u-${i}`} position={pos} />
