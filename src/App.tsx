@@ -48,7 +48,7 @@ function AboutModal() {
     <Modal open={true} onClose={() => navigate(-1)}>
       {/* Scroll container: keeps About readable on mobile */}
       <div className="w-full max-w-2xl mx-auto px-4 py-4">
-        <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain pr-1">
+        <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto overscroll-contain pr-1">
           <About />
         </div>
       </div>

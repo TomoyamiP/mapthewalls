@@ -58,6 +58,8 @@ export default function About() {
         </a>{" "}
         in Tokyo — this project aims to document art that exists in public space: raw,
         temporary, and sometimes gone by the next day.
+
+        Map The Walls is an open-source, community-driven project. Please use it in good faith. Upload content related to graffiti and street art only. Racist, hateful, abusive, or intentionally off-topic content will be removed. Don’t be a dick — help keep this space respectful and useful for everyone.
       </p>
     </div>
   );
