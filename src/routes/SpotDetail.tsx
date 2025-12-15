@@ -2,24 +2,19 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraffitiSpot } from "../types";
-import {
-  getAverageRating,
-  getLocalVote,
-  loadSpots,
-  rateSpot,
-  saveSpots,
-} from "../lib/storage";
+import { loadSpots, saveSpots } from "../lib/storage";
 import { loadSpotsFromSupabase } from "../lib/spots";
 import NavBar from "../components/NavBar";
 
-// ✅ save votes to Supabase (spot_votes)
+// ✅ Votes (Supabase)
 import { upsertVote } from "../lib/votes";
-import { loadVoteSummary } from "../lib/voteSummary";
+import { loadVoteSummary, type VoteSummary } from "../lib/voteSummary";
+import { supabase } from "../lib/supabase";
+import { getVoterId } from "../lib/voter";
 
 // UI pieces
 import StarRating from "../components/StarRating";
 import RatingSummary from "../components/RatingSummary";
-import VerdictButtons from "../components/VerdictButtons";
 import VerdictTally from "../components/VerdictTally";
 
 // Mini map
@@ -54,7 +49,12 @@ const RedIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
-/** Lightbox (same as before) */
+type MyVote = {
+  rating: number | null;
+  verdict: "buff" | "frame" | null;
+};
+
+/** Lightbox (unchanged) */
 function Lightbox({
   src,
   alt,
@@ -192,26 +192,44 @@ function Lightbox({
   );
 }
 
-type VoteSummary = {
-  avgRating: number | null;
-  ratingCount: number;
-  buffCount: number;
-  frameCount: number;
-};
+async function loadMyVote(spotId: string): Promise<MyVote> {
+  const voterId = getVoterId();
+
+  const { data, error } = await supabase
+    .from("spot_votes")
+    .select("rating, verdict")
+    .eq("spot_id", spotId)
+    .eq("voter_id", voterId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load my vote:", error);
+    return { rating: null, verdict: null };
+  }
+
+  return {
+    rating: typeof data?.rating === "number" ? data.rating : null,
+    verdict: data?.verdict === "buff" || data?.verdict === "frame" ? data.verdict : null,
+  };
+}
 
 export default function SpotDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [spot, setSpot] = useState<GraffitiSpot | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // ✅ NEW: Supabase vote data
   const [summary, setSummary] = useState<VoteSummary>({
-    avgRating: null,
-    ratingCount: 0,
-    buffCount: 0,
-    frameCount: 0,
+    avg: null,
+    count: 0,
+    buff: 0,
+    frame: 0,
   });
+  const [myVote, setMyVote] = useState<MyVote>({ rating: null, verdict: null });
+  const [votePending, setVotePending] = useState<"rating" | "verdict" | null>(null);
 
   const isAdmin =
     typeof window !== "undefined" && localStorage.getItem("admin") === "true";
@@ -221,29 +239,7 @@ export default function SpotDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
-  // For showing the user's own rating on the stars
-  const userRated = useMemo(
-    () => (spot ? getLocalVote(spot.id).rated ?? null : null),
-    [spot]
-  );
-
-  async function refreshSummary(spotId: string) {
-    try {
-      const s = await loadVoteSummary(spotId);
-      // Expecting: { avgRating, ratingCount, buffCount, frameCount }
-      setSummary({
-        avgRating: s?.avgRating ?? null,
-        ratingCount: s?.ratingCount ?? 0,
-        buffCount: s?.buffCount ?? 0,
-        frameCount: s?.frameCount ?? 0,
-      });
-    } catch (err) {
-      // Don’t break the page if summary fails
-      console.warn("Failed to load vote summary:", err);
-    }
-  }
-
-  // Load spot from Supabase + localStorage by id, then load vote summary
+  // Load spot from Supabase + localStorage by id
   useEffect(() => {
     if (!id) return;
 
@@ -252,12 +248,17 @@ export default function SpotDetail() {
       try {
         const cloudSpots = await loadSpotsFromSupabase();
         const localSpots = loadSpots();
-        const all = [...cloudSpots, ...localSpots];
 
-        const found = all.find((s) => s.id === id) ?? null;
-        setSpot(found);
+        const cloud = cloudSpots.find((s) => s.id === id) ?? null;
+        const local = localSpots.find((s) => s.id === id) ?? null;
 
-        if (found) await refreshSummary(found.id);
+        // Prefer cloud, overlay local (for legacy fields like photoPath)
+        const merged =
+          cloud || local
+            ? ({ ...(cloud ?? {}), ...(local ?? {}) } as GraffitiSpot)
+            : null;
+
+        setSpot(merged);
       } finally {
         setLoading(false);
       }
@@ -266,16 +267,60 @@ export default function SpotDetail() {
     loadSpot();
   }, [id]);
 
+  // Load Supabase summary + my vote whenever we have a spot
+  useEffect(() => {
+    if (!spot) return;
+
+    let alive = true;
+
+    (async () => {
+      const [s, mv] = await Promise.all([
+        loadVoteSummary(spot.id),
+        loadMyVote(spot.id),
+      ]);
+
+      if (!alive) return;
+      setSummary(s);
+      setMyVote(mv);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [spot?.id]);
+
   const center = useMemo<[number, number] | null>(() => {
     if (!spot) return null;
     return [spot.lat, spot.lng];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spot]);
 
-  // Fallback avg if summary is empty (legacy local ratings)
-  const avgFallback = useMemo(() => (spot ? getAverageRating(spot) : null), [spot]);
-  const avg = summary.avgRating ?? avgFallback;
-  const voteCount = summary.ratingCount;
+  async function refreshVotes(spotId: string) {
+    const [s, mv] = await Promise.all([loadVoteSummary(spotId), loadMyVote(spotId)]);
+    setSummary(s);
+    setMyVote(mv);
+  }
+
+  async function handleRate(v: number) {
+    if (!spot) return;
+    try {
+      setVotePending("rating");
+      await upsertVote({ spotId: spot.id, rating: v });
+      await refreshVotes(spot.id);
+    } finally {
+      setVotePending(null);
+    }
+  }
+
+  async function handleVerdict(kind: "buff" | "frame") {
+    if (!spot) return;
+    try {
+      setVotePending("verdict");
+      await upsertVote({ spotId: spot.id, verdict: kind });
+      await refreshVotes(spot.id);
+    } finally {
+      setVotePending(null);
+    }
+  }
 
   async function handleAdminDelete() {
     if (!spot) return;
@@ -416,7 +461,7 @@ export default function SpotDetail() {
                 <img
                   src={spot.photoUrl}
                   alt={spot.title}
-                  className="w-full h-auto max-h:[70vh] max-h-[70vh] object-contain"
+                  className="w-full h-auto max-h-[70vh] object-contain"
                   draggable={false}
                 />
               </button>
@@ -497,33 +542,20 @@ export default function SpotDetail() {
               {/* Rating row */}
               <div className="flex items-center justify-between gap-3">
                 <StarRating
-                  value={userRated ?? avg ?? 0}
-                  onChange={async (v) => {
-                    if (!spot) return;
-
-                    // 1) ALWAYS update locally first (so refresh works even if Supabase fails)
-                    const updated = rateSpot(spot.id, v);
-                    if (updated) setSpot(updated);
-
-                    // 2) Best-effort save to Supabase
-                    try {
-                      await upsertVote({ spotId: spot.id, rating: v });
-                      await refreshSummary(spot.id);
-                    } catch (err) {
-                      console.warn("Supabase rating save failed:", err);
-                      // no alert — don’t block UX
-                    }
-                  }}
+                  value={myVote.rating ?? summary.avg ?? 0}
+                  onChange={handleRate}
                 />
                 <div className="text-right">
-                  <RatingSummary avg={avg} count={voteCount} />
-                  {voteCount > 0 ? (
+                  <RatingSummary avg={summary.avg} count={summary.count} />
+                  {summary.count > 0 ? (
                     <div className="mt-0.5 text-xs text-zinc-400">
-                      Average: {(avg ?? 0).toFixed(1)} (
-                      {voteCount} {voteCount === 1 ? "vote" : "votes"})
+                      Average: {(summary.avg ?? 0).toFixed(1)} ({summary.count}{" "}
+                      {summary.count === 1 ? "vote" : "votes"})
                     </div>
                   ) : (
-                    <div className="mt-0.5 text-xs text-zinc-500">No ratings yet</div>
+                    <div className="mt-0.5 text-xs text-zinc-500">
+                      No ratings yet
+                    </div>
                   )}
                 </div>
               </div>
@@ -551,18 +583,44 @@ export default function SpotDetail() {
                 )
               )}
 
-              {/* Verdict actions + tally */}
+              {/* Verdict actions + tally (Supabase-backed) */}
               <div className="flex items-center gap-3">
-                <VerdictButtons
-                  spot={spot}
-                  onUpdated={(s) => {
-                    setSpot(s);
-                    // refresh counts (best effort)
-                    refreshSummary(s.id);
-                  }}
-                />
-                <VerdictTally buff={summary.buffCount} frame={summary.frameCount} />
+                <div className="inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleVerdict("buff")}
+                    disabled={votePending !== null}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm border transition ${
+                      myVote.verdict === "buff"
+                        ? "bg-zinc-100 text-zinc-900 border-zinc-300"
+                        : "bg-zinc-900/80 text-zinc-100 border-zinc-700/50 hover:bg-zinc-800/80"
+                    }`}
+                    aria-pressed={myVote.verdict === "buff"}
+                  >
+                    Buff it
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVerdict("frame")}
+                    disabled={votePending !== null}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm border transition ${
+                      myVote.verdict === "frame"
+                        ? "bg-zinc-100 text-zinc-900 border-zinc-300"
+                        : "bg-zinc-900/80 text-zinc-100 border-zinc-700/50 hover:bg-zinc-800/80"
+                    }`}
+                    aria-pressed={myVote.verdict === "frame"}
+                  >
+                    Frame it
+                  </button>
+                </div>
+
+                <VerdictTally buff={summary.buff} frame={summary.frame} />
               </div>
+
+              {votePending && (
+                <div className="text-xs text-zinc-500">Saving…</div>
+              )}
             </div>
 
             <div className="border-t border-zinc-700/40" />
@@ -603,7 +661,11 @@ export default function SpotDetail() {
       </main>
 
       {lightboxOpen && spot.photoUrl && (
-        <Lightbox src={spot.photoUrl} alt={spot.title} onClose={() => setLightboxOpen(false)} />
+        <Lightbox
+          src={spot.photoUrl}
+          alt={spot.title}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </div>
   );
