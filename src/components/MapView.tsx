@@ -211,7 +211,7 @@ export default function MapView({
     <MapContainer
       center={TOKYO_STATION}
       zoom={13}
-      className="h-screen w-screen relative mtw-map"
+      className="h-[100dvh] w-screen relative mtw-map"
       scrollWheelZoom
     >
       {/* Hover effects: subtle glow on pins; glow+scale on clusters */}

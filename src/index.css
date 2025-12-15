@@ -2,10 +2,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
 
+html,
+body,
+#root {
+  height: 100%;
+}
 
-html, body, #root { height: 100%; }
-
-/* Focus pulse for marker */
+/* =========================
+   MapTheWalls — Marker pulse
+   ========================= */
 .mtw-pulse {
   position: relative;
   width: 14px;
@@ -14,6 +19,7 @@ html, body, #root { height: 100%; }
   border-radius: 50%;
   box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.4);
 }
+
 .mtw-pulse::after {
   content: "";
   position: absolute;
@@ -22,16 +28,27 @@ html, body, #root { height: 100%; }
   border-radius: 50%;
   animation: mtw-pulse 1.6s ease-out 3;
 }
+
 @keyframes mtw-pulse {
-  0% { transform: scale(0.5); opacity: 0.8; }
-  100% { transform: scale(2); opacity: 0; }
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
-/* Move zoom buttons below fixed header and match app styling */
+/* =========================================
+   Leaflet — zoom buttons (mobile-safe)
+   ========================================= */
+
+/* Move zoom controls below fixed NavBar */
 .mtw-map .leaflet-top.leaflet-left {
   left: auto !important;
   right: 1rem !important;
-  top: 64px !important; /* push below the header */
+  top: calc(4rem + env(safe-area-inset-top)) !important;
 }
 
 .mtw-map .leaflet-control-zoom {
@@ -43,7 +60,7 @@ html, body, #root { height: 100%; }
 
 .mtw-map .leaflet-control-zoom a {
   background: rgba(24, 24, 27, 0.9) !important; /* zinc-900/90 */
-  color: #f4f4f5 !important;                    /* zinc-100 */
+  color: #f4f4f5 !important; /* zinc-100 */
   border: 1px solid rgba(63, 63, 70, 0.7) !important; /* zinc-700/70 */
   font-weight: 600;
   font-size: 18px;
@@ -58,36 +75,49 @@ html, body, #root { height: 100%; }
   transform: scale(1.05);
 }
 
-/* MapTheWalls — Leaflet popup theming */
+/* =========================================
+   Leaflet popup theming
+   ========================================= */
 .mtw-map .leaflet-popup {
   margin-bottom: 10px;
 }
+
 .mtw-map .leaflet-popup-content-wrapper {
-  background: rgba(24, 24, 27, 0.90); /* zinc-900/90 */
+  background: rgba(24, 24, 27, 0.9); /* zinc-900/90 */
   color: #e4e4e7; /* zinc-200 */
   border: 1px solid rgba(63, 63, 70, 0.5); /* zinc-700/50 */
   border-radius: 14px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
 }
+
 .mtw-map .leaflet-popup-content {
-  margin: 10px 12px; /* tighter, card-like padding */
+  margin: 10px 12px;
 }
+
 .mtw-map .leaflet-popup-tip {
-  background: rgba(24, 24, 27, 0.90);
+  background: rgba(24, 24, 27, 0.9);
   border: 1px solid rgba(63, 63, 70, 0.5);
 }
 
+/* =========================================
+   Branding / typography
+   ========================================= */
 .font-marker {
   font-family: 'Bungee', sans-serif;
 }
 
 .logo-text {
-  color: #ffffff; /* white text */
-  text-shadow: 2px 2px 6px rgba(225, 29, 72, 0.8); /* red glow (#e11d48) */
+  color: #ffffff;
+  text-shadow: 2px 2px 6px rgba(225, 29, 72, 0.8); /* red glow */
   margin-left: 0.5rem;
   transition: transform 0.2s ease;
 }
 
 .logo-text:hover {
   transform: scale(1.05);
+}
+
+/* MapTheWalls — keep Leaflet top controls below fixed NavBar (iPhone-safe) */
+.mtw-map .leaflet-top {
+  top: calc(4rem + env(safe-area-inset-top)) !important;
 }
