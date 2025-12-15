@@ -117,21 +117,63 @@ function RecenterButton({
 }) {
   const map = useMap();
 
-  async function handleClick() {
+  useEffect(() => {
+    function onFound(e: any) {
+      const pos: [number, number] = [e.latlng.lat, e.latlng.lng];
+      onSetUserPos(pos);
+      map.flyTo(pos, 15, { duration: 0.5 });
+    }
+
+    function onError(e: any) {
+      console.warn("Geolocation error:", e);
+      alert("Couldn’t get your location. Please allow Location access in your browser settings.");
+    }
+
+    map.on("locationfound", onFound);
+    map.on("locationerror", onError);
+
+    return () => {
+      map.off("locationfound", onFound);
+      map.off("locationerror", onError);
+    };
+  }, [map, onSetUserPos]);
+
+  function handleClick() {
     if (userPos) {
       map.flyTo(userPos, 15, { duration: 0.5 });
       return;
     }
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (g) => {
-        const pos: [number, number] = [g.coords.latitude, g.coords.longitude];
-        onSetUserPos(pos);
-        map.flyTo(pos, 15, { duration: 0.5 });
-      },
-      () => {}
-    );
+
+    // Triggers browser permission prompt on HTTPS (Netlify) and works well on mobile
+    map.locate({ enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 });
   }
+
+  return (
+    <div className="pointer-events-none absolute left-6 bottom-6 z-[10000]">
+      <button
+        type="button"
+        onClick={handleClick}
+        className="pointer-events-auto cursor-pointer select-none
+                   flex items-center gap-2 rounded-full px-3.5 py-2
+                   bg-zinc-900/90 hover:bg-zinc-800
+                   border border-zinc-700/60 shadow-xl transition active:scale-95
+                   text-sm text-zinc-100"
+        aria-label="Recenter to my location"
+        title="Recenter to my location"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 2v2M12 20v2M2 12h2M20 12h2M12 6a6 6 0 100 12 6 6 0 000-12z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+        </svg>
+        Me
+      </button>
+    </div>
+  );
+}
 
   return (
     <div className="pointer-events-none absolute left-6 bottom-6 z-[10000]">

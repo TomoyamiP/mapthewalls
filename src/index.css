@@ -44,10 +44,8 @@ body,
    Leaflet — zoom buttons (mobile-safe)
    ========================================= */
 
-/* Move zoom controls below fixed NavBar */
-.mtw-map .leaflet-top.leaflet-left {
-  left: auto !important;
-  right: 1rem !important;
+/* MapTheWalls — force Leaflet top controls below fixed NavBar (iPhone-safe) */
+.leaflet-container.mtw-map .leaflet-control-container .leaflet-top {
   top: calc(4rem + env(safe-area-inset-top)) !important;
 }
 
