@@ -2,10 +2,15 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { GraffitiSpot } from "../types";
-// Switched to Supabase-backed loader
 import { loadSpotsFromSupabase } from "../lib/spots";
+import { supabase } from "../lib/supabase";
 
 type SortKey = "nearest" | "newest" | "rating_desc" | "rating_asc";
+
+type SpotVoteRow = {
+  spot_id: string;
+  rating: number | null;
+};
 
 export default function Archive() {
   const [spots, setSpots] = useState<GraffitiSpot[]>([]);
@@ -13,23 +18,68 @@ export default function Archive() {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const navigate = useNavigate();
 
-  // ✅ Load spots from Supabase instead of localStorage
   useEffect(() => {
-    let isMounted = true;
+    let alive = true;
 
     (async () => {
       try {
+        // 1) Load spots
         const supabaseSpots = await loadSpotsFromSupabase();
-        if (isMounted) {
-          setSpots(supabaseSpots);
+        if (!alive) return;
+
+        // 2) Load votes for THESE spots (so we can compute averages)
+        const ids = supabaseSpots.map((s) => s.id).filter(Boolean);
+        if (ids.length === 0) {
+          setSpots([]);
+          return;
         }
-      } catch (error) {
-        console.error("Failed to load spots from Supabase in Archive:", error);
+
+        const { data, error } = await supabase
+          .from("spot_votes")
+          .select("spot_id, rating")
+          .in("spot_id", ids);
+
+        if (error) {
+          console.warn("Failed to load spot_votes for Archive sort:", error);
+          // still show the list without avg sorting info
+          setSpots(supabaseSpots);
+          return;
+        }
+
+        const rows = (data ?? []) as SpotVoteRow[];
+
+        // Build ratingSum/ratingCount per spot_id
+        const map = new Map<string, { sum: number; count: number }>();
+        for (const r of rows) {
+          if (!r.spot_id) continue;
+          if (typeof r.rating !== "number") continue;
+
+          const cur = map.get(r.spot_id) ?? { sum: 0, count: 0 };
+          cur.sum += r.rating;
+          cur.count += 1;
+          map.set(r.spot_id, cur);
+        }
+
+        // Attach avgRating to each spot *locally* for display + sorting
+        const withAvg = supabaseSpots.map((s: any) => {
+          const agg = map.get(s.id);
+          const avg = agg && agg.count > 0 ? agg.sum / agg.count : null;
+
+          return {
+            ...s,
+            avgRating: avg,          // used by your sort + UI
+            ratingCount: agg?.count ?? 0, // optional (nice to have)
+          } as GraffitiSpot & { ratingCount?: number };
+        });
+
+        setSpots(withAvg);
+      } catch (err) {
+        console.error("Failed to load Archive:", err);
       }
     })();
 
     return () => {
-      isMounted = false;
+      alive = false;
     };
   }, []);
 
@@ -38,11 +88,8 @@ export default function Archive() {
     if (sortKey !== "nearest" || userLoc) return;
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => {
-          console.warn("Geolocation error:", err);
-        }
+        (pos) => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => console.warn("Geolocation error:", err)
       );
     }
   }, [sortKey, userLoc]);
@@ -72,18 +119,13 @@ export default function Archive() {
           const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return bTime - aTime;
         });
+
       case "rating_desc":
-        return spotsCopy.sort((a, b) => {
-          const aRating = a.avgRating ?? 0;
-          const bRating = b.avgRating ?? 0;
-          return bRating - aRating;
-        });
+        return spotsCopy.sort((a: any, b: any) => (b.avgRating ?? 0) - (a.avgRating ?? 0));
+
       case "rating_asc":
-        return spotsCopy.sort((a, b) => {
-          const aRating = a.avgRating ?? 0;
-          const bRating = b.avgRating ?? 0;
-          return aRating - bRating;
-        });
+        return spotsCopy.sort((a: any, b: any) => (a.avgRating ?? 0) - (b.avgRating ?? 0));
+
       case "nearest":
         if (!userLoc) return spotsCopy;
         return spotsCopy.sort((a, b) => {
@@ -91,6 +133,7 @@ export default function Archive() {
           const bDist = distanceKm(userLoc, { lat: b.lat, lng: b.lng });
           return aDist - bDist;
         });
+
       default:
         return spotsCopy;
     }
@@ -130,7 +173,7 @@ export default function Archive() {
           </div>
         ) : (
           <ul className="space-y-3">
-            {sortedSpots.map((spot) => (
+            {sortedSpots.map((spot: any) => (
               <li
                 key={spot.id}
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-900/70 border border-zinc-800 rounded-xl p-3"
@@ -144,14 +187,14 @@ export default function Archive() {
                     />
                   )}
                   <div>
-                    <h2 className="font-semibold text-sm">
-                      {spot.title || "Untitled spot"}
-                    </h2>
-                    {spot.avgRating != null && (
+                    <h2 className="font-semibold text-sm">{spot.title || "Untitled spot"}</h2>
+
+                    {spot.avgRating != null && spot.ratingCount > 0 && (
                       <p className="text-xs text-zinc-400">
-                        Rating: {spot.avgRating.toFixed(1)} ★
+                        Rating: {spot.avgRating.toFixed(1)} ★ ({spot.ratingCount})
                       </p>
                     )}
+
                     {spot.createdAt && (
                       <p className="text-xs text-zinc-500">
                         {new Date(spot.createdAt).toLocaleDateString()}
