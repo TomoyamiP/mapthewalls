@@ -140,7 +140,7 @@ export default function Archive() {
   }, [spots, sortKey, userLoc]);
 
   return (
-    <div className="pt-24 min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="pt-[calc(4rem+env(safe-area-inset-top))] min-h-screen bg-zinc-950 text-zinc-100">
       <div className="max-w-4xl mx-auto px-4 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h1 className="text-2xl font-semibold">Archive</h1>
