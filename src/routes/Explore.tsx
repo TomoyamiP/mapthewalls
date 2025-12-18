@@ -34,7 +34,7 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
   const [desc, setDesc] = useState("");
 
   // NEW: load from Supabase + localStorage
-// Load from Supabase + localStorage and de-dupe by id
+  // Load from Supabase + localStorage and de-dupe by id
   useEffect(() => {
     async function loadAll() {
       // 1. Load spots from Supabase (shared)
@@ -83,7 +83,9 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
       try {
         pos = await getPosition();
       } catch {
-        alert("Could not get location. Please enable location or add a photo with GPS EXIF.");
+        alert(
+          "Could not get location. Please enable location or add a photo with GPS EXIF."
+        );
         return;
       }
     }
@@ -94,7 +96,7 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
       title: title.trim(),
       description: desc.trim() || undefined,
       photoUrl: imageUrl || undefined,
-      photoPath: imagePath || undefined,   // 👈 NEW
+      photoPath: imagePath || undefined, // 👈 NEW
       lat: pos.lat,
       lng: pos.lng,
       createdAt: new Date().toISOString(),
@@ -130,13 +132,15 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
   }
 
   return (
-    <div className="relative h-screen w-screen">
+    <div className="relative w-screen h-[calc(100dvh-4rem-env(safe-area-inset-top))] bg-zinc-950">
       <NavBar />
-      <MapView spots={spots} focusId={focusId} dimControls={dimControls} />
+
+      {/* ✅ Important: when the modal is open, dimControls=true so MapView hides its floating controls */}
+      <MapView spots={spots} focusId={focusId} dimControls={dimControls || open} />
 
       {/* Floating Add button with upward-fading tooltip */}
       <div
-        className={`fixed z-[10000] bottom-20 right-6 group transition-opacity duration-200 ${
+        className={`fixed z-[10000] bottom-10.5 right-3 group transition-opacity duration-200 ${
           dimControls ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
       >
@@ -169,7 +173,9 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
         <form className="space-y-5" onSubmit={handleSubmit}>
           {/* Photo */}
           <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-wide text-zinc-400">Photo</label>
+            <label className="block text-xs uppercase tracking-wide text-zinc-400">
+              Photo
+            </label>
             <PhotoField
               label="Upload photo"
               onChange={(file) => {
@@ -190,7 +196,9 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
 
           {/* Title */}
           <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-wide text-zinc-400">Title</label>
+            <label className="block text-xs uppercase tracking-wide text-zinc-400">
+              Title
+            </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -206,7 +214,9 @@ export default function Explore({ dimControls = false }: { dimControls?: boolean
 
           {/* Description */}
           <div className="space-y-2">
-            <label className="block text-xs uppercase tracking-wide text-zinc-400">Notes (optional)</label>
+            <label className="block text-xs uppercase tracking-wide text-zinc-400">
+              Notes (optional)
+            </label>
             <textarea
               value={desc}
               onChange={(e) => setDesc(e.target.value)}

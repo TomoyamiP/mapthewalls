@@ -99,7 +99,9 @@ function FitToSpots({
       return;
     }
 
-    const bounds = new L.LatLngBounds(spots.map((s) => new L.LatLng(s.lat, s.lng)));
+    const bounds = new L.LatLngBounds(
+      spots.map((s) => new L.LatLng(s.lat, s.lng))
+    );
     map.fitBounds(bounds, { padding: [60, 80], animate: true });
   }, [enabled, spots, map]);
 
@@ -125,7 +127,9 @@ function RecenterButton({
 
     function onError(e: any) {
       console.warn("Geolocation error:", e);
-      alert("Couldn’t get your location. Please allow Location access in your browser settings.");
+      alert(
+        "Couldn’t get your location. Please allow Location access in your browser settings."
+      );
     }
 
     map.on("locationfound", onFound);
@@ -148,7 +152,7 @@ function RecenterButton({
   }
 
   return (
-    <div className="pointer-events-none absolute left-6 bottom-6 z-[10000]">
+    <div className="pointer-events-none absolute left-6 bottom-20 translate-y-7 z-[10000]">
       <button
         type="button"
         onClick={handleClick}
@@ -208,10 +212,12 @@ export default function MapView({
   spots = [] as GraffitiSpot[],
   focusId,
   dimControls = false,
+  hideControls = false,
 }: {
   spots?: GraffitiSpot[];
   focusId?: string;
   dimControls?: boolean;
+  hideControls?: boolean;
 }) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const userMarker = useMemo(() => (userPos ? [userPos] : []), [userPos]);
@@ -234,11 +240,17 @@ export default function MapView({
     <MapContainer
       center={TOKYO_STATION}
       zoom={13}
-      className="h-[100dvh] w-screen relative mtw-map"
+      // ✅ iPhone fix: use the SAME top offset you used for Archive (NavBar + safe area)
+      className="h-[100dvh] w-screen relative mtw-map bg-zinc-950"
       scrollWheelZoom
     >
       {/* Hover effects: subtle glow on pins; glow+scale on clusters */}
       <style>{`
+        /* ✅ If anything ever shows outside tiles, make it black (kills white bands) */
+        .leaflet-container { background: #09090b; } /* zinc-950 */
+
+        .leaflet-control-zoom { margin-top: 1.5rem !important; }
+
         /* Pins: vibrant purple glow on hover */
         .leaflet-marker-icon {
           transition: filter 180ms ease;
@@ -267,7 +279,10 @@ export default function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <UseLocate onLocate={setUserPos} disableCenter={!!focusId || spots.length > 0} />
+      <UseLocate
+        onLocate={setUserPos}
+        disableCenter={!!focusId || spots.length > 0}
+      />
       <FocusController spots={spots} focusId={focusId} />
       <FitToSpots spots={spots} enabled={!focusId} />
 
@@ -350,7 +365,7 @@ export default function MapView({
 
       <div
         className={`transition-opacity duration-200 ${
-          dimControls ? "opacity-0 pointer-events-none" : "opacity-100"
+          dimControls || hideControls ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
       >
         <RecenterButton userPos={userPos} onSetUserPos={setUserPos} />

@@ -24,15 +24,10 @@ export default function About() {
 
       <p className="mb-3 leading-relaxed">
         <strong>Map The Walls</strong> is a living record of graffiti and street art
-        spotted across Tokyo and beyond. The city’s walls, tunnels, and back alleys
-        are constantly changing — tags fade, new pieces go up, whole buildings
-        disappear overnight. This app tries to keep track of that movement before it’s gone.
-      </p>
-
-      <p className="mb-6 leading-relaxed">
-        The project started as a way to mix tech and curiosity — to notice what’s around us,
-        to map it, and to give credit to the people keeping visual culture alive outside
-        of galleries. Each marker represents a photo someone took when they stopped and looked twice.
+        spotted across Tokyo and beyond. The project started as a way to mix tech
+        and curiosity — to notice what’s around us, to map it, and to showcase the
+        artists keeping visual culture alive in public spaces, outside of galleries.
+        Each marker represents a photo someone took when they stopped and looked twice.
       </p>
 
       {/* ---------- Minimal instructions section ---------- */}

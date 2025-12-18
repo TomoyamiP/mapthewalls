@@ -17,21 +17,20 @@ function AppRoutes() {
     <>
       {/* Main content; if we came via modal state, keep showing the background route */}
       <Routes location={backgroundLocation || location}>
-        <Route
-          path="/"
-          element={<Explore dimControls={!!backgroundLocation} />}
-        />
+        <Route path="/" element={<Explore dimControls={!!backgroundLocation} />} />
         <Route path="/archive" element={<Archive />} />
         <Route path="/spots/:id" element={<SpotDetail />} />
+
         {/* Fallback: full-page About when directly hitting /about or refreshing */}
         <Route
           path="/about"
           element={
-            <div className="pt-16 px-4"> {/* offset for fixed NavBar */}
+            <div className="px-4 pt-[calc(5.5rem+env(safe-area-inset-top))] pb-6">
               <About />
             </div>
           }
         />
+
         <Route path="*" element={<Explore />} />
       </Routes>
 
@@ -46,8 +45,10 @@ function AboutModal() {
 
   return (
     <Modal open={true} onClose={() => navigate(-1)}>
-      <div className="w-full max-w-3xl mx-auto px-4 pt-6 pb-4">
-        <div className="mtw-about-scroll max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain pr-2">
+      {/* Full-height container so the scroll box matches the screen height */}
+      <div className="w-full max-w-2xl mx-auto px-4 h-[100dvh]">
+        {/* Offset content so it starts BELOW the fixed NavBar */}
+        <div className="h-full overflow-y-auto overscroll-contain pr-1 pt-[calc(5.5rem+env(safe-area-inset-top))] pb-6">
           <About />
         </div>
       </div>

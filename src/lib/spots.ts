@@ -80,3 +80,26 @@ export async function updateSpotRatingInSupabase(
 
   return true;
 }
+
+// ✅ Admin: update spot title/description in Supabase so Archive reflects changes
+export async function updateSpotMetaInSupabase(
+  spotId: string,
+  patch: { title: string; description?: string | null }
+) {
+  const { data, error } = await supabase
+    .from("spots")
+    .update({
+      title: patch.title,
+      description: patch.description ?? null,
+    })
+    .eq("id", spotId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to update spot meta:", error);
+    throw error;
+  }
+
+  return data;
+}

@@ -209,7 +209,8 @@ async function loadMyVote(spotId: string): Promise<MyVote> {
 
   return {
     rating: typeof data?.rating === "number" ? data.rating : null,
-    verdict: data?.verdict === "buff" || data?.verdict === "frame" ? data.verdict : null,
+    verdict:
+      data?.verdict === "buff" || data?.verdict === "frame" ? data.verdict : null,
   };
 }
 
@@ -221,7 +222,7 @@ export default function SpotDetail() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ✅ NEW: Supabase vote data
+  // ✅ Supabase vote data
   const [summary, setSummary] = useState<VoteSummary>({
     avg: null,
     count: 0,
@@ -252,13 +253,17 @@ export default function SpotDetail() {
         const cloud = cloudSpots.find((s) => s.id === id) ?? null;
         const local = localSpots.find((s) => s.id === id) ?? null;
 
-        // Prefer cloud, overlay local (for legacy fields like photoPath)
         const merged =
           cloud || local
-            ? ({ ...(cloud ?? {}), ...(local ?? {}) } as GraffitiSpot)
+            ? ({ ...(cloud ?? {}), ...(local ?? {}) } as any)
             : null;
 
-        setSpot(merged);
+        // ✅ Normalize: if cloud uses `note`, map it into `description` for your UI
+        if (merged && !merged.description && typeof merged.note === "string") {
+          merged.description = merged.note;
+        }
+
+        setSpot(merged as GraffitiSpot | null);
       } finally {
         setLoading(false);
       }
@@ -322,6 +327,7 @@ export default function SpotDetail() {
     }
   }
 
+  // delete local-first, and only attempt Supabase deletes when possible
   async function handleAdminDelete() {
     if (!spot) return;
 
@@ -329,6 +335,12 @@ export default function SpotDetail() {
     if (!ok) return;
 
     try {
+      // 1) Always remove from localStorage (covers local-only test spots)
+      const all = loadSpots();
+      const filtered = all.filter((s) => s.id !== spot.id);
+      saveSpots(filtered);
+
+      // 2) Attempt Supabase image delete only if we actually have a path
       if (spot.photoPath) {
         try {
           await deleteFromSupabase(spot.photoPath);
@@ -337,15 +349,12 @@ export default function SpotDetail() {
         }
       }
 
+      // 3) Attempt Supabase row delete
       try {
         await deleteSpotRowFromSupabase(spot.id);
       } catch (err) {
-        console.warn("Supabase row delete failed:", err);
+        console.warn("Supabase row delete failed (continuing anyway):", err);
       }
-
-      const all = loadSpots();
-      const filtered = all.filter((s) => s.id !== spot.id);
-      saveSpots(filtered);
 
       navigate("/archive");
     } catch (err) {
@@ -365,7 +374,8 @@ export default function SpotDetail() {
     setIsEditing(false);
   }
 
-  function handleAdminSaveEdit() {
+  // ✅ FIX: Supabase uses `note` (not `description`)
+  async function handleAdminSaveEdit() {
     if (!spot) return;
 
     const nextTitle = editTitle.trim();
@@ -376,19 +386,46 @@ export default function SpotDetail() {
       return;
     }
 
+    // 1) Try Supabase update (cloud spots)
+    try {
+      const { error } = await supabase
+        .from("spots")
+        .update({
+          title: nextTitle,
+          note: nextDesc ? nextDesc : null, // ✅ IMPORTANT
+        })
+        .eq("id", spot.id);
+
+      if (error) {
+        console.warn("Supabase update failed (continuing with local only):", error);
+      }
+    } catch (err) {
+      console.warn("Supabase update threw (continuing with local only):", err);
+    }
+
+    // 2) Update localStorage copy if it exists (legacy/local test spots)
     const all = loadSpots();
     const idx = all.findIndex((s) => s.id === spot.id);
-    if (idx < 0) return;
+    if (idx >= 0) {
+      all[idx] = {
+        ...all[idx],
+        title: nextTitle,
+        description: nextDesc || undefined,
+      };
+      saveSpots(all);
+    }
 
-    const updated: GraffitiSpot = {
-      ...all[idx],
-      title: nextTitle,
-      description: nextDesc || undefined,
-    };
+    // 3) Update current page UI
+    setSpot((prev) =>
+      prev
+        ? ({
+            ...prev,
+            title: nextTitle,
+            description: nextDesc || undefined,
+          } as GraffitiSpot)
+        : prev
+    );
 
-    all[idx] = updated;
-    saveSpots(all);
-    setSpot(updated);
     setIsEditing(false);
   }
 
@@ -541,10 +578,7 @@ export default function SpotDetail() {
 
               {/* Rating row */}
               <div className="flex items-center justify-between gap-3">
-                <StarRating
-                  value={myVote.rating ?? summary.avg ?? 0}
-                  onChange={handleRate}
-                />
+                <StarRating value={myVote.rating ?? summary.avg ?? 0} onChange={handleRate} />
                 <div className="text-right">
                   <RatingSummary avg={summary.avg} count={summary.count} />
                   {summary.count > 0 ? (
@@ -553,9 +587,7 @@ export default function SpotDetail() {
                       {summary.count === 1 ? "vote" : "votes"})
                     </div>
                   ) : (
-                    <div className="mt-0.5 text-xs text-zinc-500">
-                      No ratings yet
-                    </div>
+                    <div className="mt-0.5 text-xs text-zinc-500">No ratings yet</div>
                   )}
                 </div>
               </div>
@@ -576,9 +608,7 @@ export default function SpotDetail() {
                 spot.description && (
                   <div>
                     <h2 className="text-xs text-zinc-400 mb-1">Notes</h2>
-                    <p className="text-sm text-zinc-200 whitespace-pre-wrap">
-                      {spot.description}
-                    </p>
+                    <p className="text-sm text-zinc-200 whitespace-pre-wrap">{spot.description}</p>
                   </div>
                 )
               )}
@@ -618,9 +648,7 @@ export default function SpotDetail() {
                 <VerdictTally buff={summary.buff} frame={summary.frame} />
               </div>
 
-              {votePending && (
-                <div className="text-xs text-zinc-500">Saving…</div>
-              )}
+              {votePending && <div className="text-xs text-zinc-500">Saving…</div>}
             </div>
 
             <div className="border-t border-zinc-700/40" />
@@ -661,11 +689,7 @@ export default function SpotDetail() {
       </main>
 
       {lightboxOpen && spot.photoUrl && (
-        <Lightbox
-          src={spot.photoUrl}
-          alt={spot.title}
-          onClose={() => setLightboxOpen(false)}
-        />
+        <Lightbox src={spot.photoUrl} alt={spot.title} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );
