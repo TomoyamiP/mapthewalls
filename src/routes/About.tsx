@@ -27,7 +27,7 @@ export default function About() {
         spotted across Tokyo and beyond. The project started as a way to mix tech
         and curiosity — to notice what’s around us, to map it, and to showcase the
         artists keeping visual culture alive outside of galleries.
-        Each marker represents a photo someone took when they stopped and looked twice.
+        Each marker represents a photo taken when someone stopped and looked twice.
       </p>
 
       {/* ---------- Minimal instructions section ---------- */}
