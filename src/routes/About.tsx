@@ -26,7 +26,7 @@ export default function About() {
         <strong>Map The Walls</strong> is a living record of graffiti and street art
         spotted across Tokyo and beyond. The project started as a way to mix tech
         and curiosity — to notice what’s around us, to map it, and to showcase the
-        artists keeping visual culture alive in public spaces, outside of galleries.
+        artists keeping visual culture alive outside of galleries.
         Each marker represents a photo someone took when they stopped and looked twice.
       </p>
 

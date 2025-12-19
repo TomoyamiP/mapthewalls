@@ -39,6 +39,20 @@ const RedIcon = L.icon({
 
 const TOKYO_STATION: [number, number] = [35.681236, 139.767125];
 
+/** ✅ iOS PWA fix: force Leaflet to recalc size after initial paint */
+function InvalidateSizeOnMount() {
+  const map = useMap();
+  useEffect(() => {
+    const t1 = window.setTimeout(() => map.invalidateSize(), 0);
+    const t2 = window.setTimeout(() => map.invalidateSize(), 250); // iOS PWA sometimes needs a second pass
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [map]);
+  return null;
+}
+
 function UseLocate({
   onLocate,
   disableCenter = false,
@@ -240,10 +254,12 @@ export default function MapView({
     <MapContainer
       center={TOKYO_STATION}
       zoom={13}
-      // ✅ iPhone fix: use the SAME top offset you used for Archive (NavBar + safe area)
       className="h-[100dvh] w-screen relative mtw-map bg-zinc-950"
       scrollWheelZoom
     >
+      {/* ✅ IMPORTANT: fixes iOS PWA first-load blank tiles */}
+      <InvalidateSizeOnMount />
+
       {/* Hover effects: subtle glow on pins; glow+scale on clusters */}
       <style>{`
         /* ✅ If anything ever shows outside tiles, make it black (kills white bands) */
